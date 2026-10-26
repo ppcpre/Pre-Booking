@@ -1,0 +1,761 @@
+<title>Pre-Booking Console</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: quiet two-column console. Text-only sidebar, hairline rules instead of cards, mint used only for state and the one primary action. */
+:root {
+  --page: #f6faf8;
+  --surface: #ffffff;
+  --mint-50: #eef8f3;
+  --mint-100: #dcf1e7;
+  --mint-300: #a8dbc5;
+  --accent: #2c6a55;
+  --on-accent: #ffffff;
+  --ink: #17211d;
+  --ink-2: #4a5853;
+  --muted: #7d8b86;
+  --line: #e5ede9;
+  --line-2: #d4e0db;
+  --amber: #b07d1a;  --amber-bg: #fbf2de;
+  --coral: #b9483e;  --coral-bg: #fbe8e4;
+  --sky: #3a77a8;    --sky-bg: #e6f0f8;
+  --lav: #6b58a0;    --lav-bg: #efebf8;
+  --grey: #9aa6a1;   --grey-bg: #f0f3f2;
+  --font: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #0f1513; --surface: #141c19; --mint-50: #172520; --mint-100: #1c3029; --mint-300: #3d7a63;
+    --accent: #9fdcc4; --on-accent: #0f1513; --ink: #e5eeea; --ink-2: #b4c2bc; --muted: #84938d; --line: #202c28; --line-2: #2b3a35;
+    --amber: #e3b45a; --amber-bg: #33291a; --coral: #ef9a8f; --coral-bg: #3a2220; --sky: #8cbde3; --sky-bg: #1a2a37;
+    --lav: #b8a8e6; --lav-bg: #262138; --grey: #7f8c87; --grey-bg: #1d2522;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #0f1513; --surface: #141c19; --mint-50: #172520; --mint-100: #1c3029; --mint-300: #3d7a63;
+  --accent: #9fdcc4; --on-accent: #0f1513; --ink: #e5eeea; --ink-2: #b4c2bc; --muted: #84938d; --line: #202c28; --line-2: #2b3a35;
+  --amber: #e3b45a; --amber-bg: #33291a; --coral: #ef9a8f; --coral-bg: #3a2220; --sky: #8cbde3; --sky-bg: #1a2a37;
+  --lav: #b8a8e6; --lav-bg: #262138; --grey: #7f8c87; --grey-bg: #1d2522;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { background: var(--page); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.shell { display: grid; grid-template-columns: 224px minmax(0, 1fr); min-height: 100vh; }
+
+/* Sidebar */
+.side { background: var(--surface); border-right: 1px solid var(--line); padding: 20px 14px; display: flex; flex-direction: column; gap: 22px;
+  padding-left: max(14px, env(safe-area-inset-left, 0px)); position: sticky; top: 0; height: 100vh; }
+.brand { font-weight: 600; letter-spacing: -.01em; font-size: 15px; display: flex; align-items: center; gap: 8px; padding: 0 8px; }
+.brand i { width: 10px; height: 10px; border-radius: 3px; background: var(--mint-300); display: inline-block; }
+.prop { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: grid; gap: 1px; cursor: pointer; background: var(--surface); text-align: left; }
+.prop small { color: var(--muted); font-size: 11.5px; }
+.prop b { font-weight: 500; font-size: 13.5px; display: flex; justify-content: space-between; }
+nav.menu { display: grid; gap: 1px; }
+nav.menu button { all: unset; cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; border-radius: 6px; color: var(--ink-2); font-size: 13.5px; }
+nav.menu button:hover { background: var(--page); color: var(--ink); }
+nav.menu button[aria-current="page"] { background: var(--mint-50); color: var(--ink); font-weight: 500; }
+nav.menu button span.c { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+nav.menu .sep { height: 1px; background: var(--line); margin: 8px 10px; }
+.me { margin-top: auto; display: flex; gap: 10px; align-items: center; padding: 0 8px; font-size: 13px; }
+.me .av { width: 28px; height: 28px; border-radius: 50%; background: var(--mint-100); color: var(--accent); display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+.me small { display: block; color: var(--muted); font-size: 11.5px; }
+
+/* Main */
+main { min-width: 0; padding: 28px 36px 64px; padding-right: max(36px, env(safe-area-inset-right, 0px)); }
+.screen { display: grid; gap: 28px; max-width: 1180px; }
+.screen[hidden] { display: none !important; }
+.head { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; justify-content: space-between; }
+.head h1 { font-size: 22px; font-weight: 600; letter-spacing: -.015em; margin: 0; text-wrap: balance; }
+.head p { margin: 2px 0 0; color: var(--muted); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.crumb { font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+.crumb button { all: unset; cursor: pointer; color: var(--muted); }
+.crumb button:hover { color: var(--ink); }
+
+.btn { border: 1px solid var(--line-2); background: var(--surface); border-radius: 7px; padding: 7px 13px; font-size: 13.5px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 500; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--ink-2); }
+.btn.quiet:hover { background: var(--mint-50); }
+.btn.sm { padding: 4px 10px; font-size: 12.5px; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+
+/* Figures: plain numbers on hairlines, no tiles */
+.figures { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.figures > div { padding: 16px 18px 14px; border-left: 1px solid var(--line); }
+.figures > div:first-child { border-left: 0; padding-left: 0; }
+.figures .n { font-size: 24px; font-weight: 500; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.figures .n small { font-size: 14px; color: var(--muted); font-weight: 400; }
+.figures .l { color: var(--muted); font-size: 12.5px; }
+.figures .l.alert { color: var(--coral); }
+.figures.f3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px; }
+.split.wide { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); }
+.block { display: grid; gap: 10px; min-width: 0; align-content: start; }
+.block > h2 { font-size: 13px; font-weight: 600; margin: 0; display: flex; justify-content: space-between; align-items: baseline; }
+.block > h2 span { font-weight: 400; color: var(--muted); font-size: 12.5px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+
+.tw { overflow-x: auto; min-width: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+.panel table th:first-child, .panel table td:first-child { padding-left: 16px; }
+.panel table th:last-child, .panel table td:last-child { padding-right: 16px; }
+td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
+tr.click { cursor: pointer; }
+tr.click:hover td { background: var(--page); }
+tr.detail td { background: var(--page); color: var(--ink-2); font-size: 12.5px; padding-top: 8px; padding-bottom: 10px; }
+.code { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+.dim { color: var(--muted); }
+.unit { font-variant-numeric: tabular-nums; font-weight: 500; }
+
+.tag { font-size: 11px; letter-spacing: .02em; border: 1px solid var(--line-2); border-radius: 4px; padding: 0 5px; color: var(--ink-2); white-space: nowrap; }
+.tag.y { background: var(--mint-50); border-color: var(--mint-300); color: var(--accent); }
+
+.st { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 13px; color: var(--ink-2); }
+.st::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--grey); flex: none; }
+.st.paid::before { background: var(--accent); }
+.st.partial::before, .st.reserved::before { background: var(--amber); }
+.st.overdue { color: var(--coral); } .st.overdue::before { background: var(--coral); }
+.st.due::before, .st.confirmed::before { background: var(--sky); }
+.st.inhouse::before { background: var(--accent); }
+.st.upcoming::before { background: transparent; border: 1.5px solid var(--grey); width: 5px; height: 5px; }
+
+.list { display: grid; }
+.list .it { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.list .it:last-child { border-bottom: 0; }
+.list .it .who { min-width: 0; }
+.list .it .who b { font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list .it .who small { color: var(--muted); font-size: 12.5px; }
+.list.plain .it { grid-template-columns: minmax(0, 1fr) auto; }
+
+.notice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 8px; background: var(--amber-bg); color: var(--ink); font-size: 13.5px; }
+.notice b { font-weight: 600; }
+.notice.mint { background: var(--mint-50); }
+
+.tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--line); font-size: 13.5px; overflow-x: auto; }
+.tabs span { padding: 0 0 10px; color: var(--muted); white-space: nowrap; cursor: default; }
+.tabs span.on { color: var(--ink); border-bottom: 2px solid var(--accent); font-weight: 500; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.field { border: 1px solid var(--line-2); background: var(--surface); border-radius: 7px; padding: 7px 11px; font-size: 13.5px; color: var(--ink); min-width: 0; }
+.field.ph { color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 7px; overflow: hidden; background: var(--surface); }
+.seg span { padding: 6px 12px; font-size: 13px; color: var(--ink-2); border-left: 1px solid var(--line-2); cursor: pointer; }
+.seg span:first-child { border-left: 0; }
+.seg span.on { background: var(--mint-50); color: var(--ink); font-weight: 500; }
+
+/* Calendar */
+.cal { display: grid; grid-template-columns: 120px repeat(14, minmax(46px, 1fr)); min-width: 860px; font-size: 12.5px; }
+.cal > div { border-bottom: 1px solid var(--line); min-height: 40px; display: flex; align-items: center; }
+.cal .dh { justify-content: center; color: var(--muted); flex-direction: column; gap: 0; line-height: 1.2; padding: 6px 0; font-size: 11.5px; }
+.cal .dh b { color: var(--ink); font-weight: 500; font-size: 13px; }
+.cal .dh.today b { background: var(--accent); color: var(--on-accent); border-radius: 50%; width: 24px; height: 24px; display: grid; place-items: center; }
+.cal .we { background: var(--page); }
+.cal .grp { grid-column: 1 / -1; min-height: 30px; color: var(--muted); font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; padding-top: 10px; }
+.cal .rm { gap: 8px; padding-left: 2px; }
+.cal .rm b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.bar { margin: 0 2px; padding: 4px 8px; border-radius: 6px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.bar.in { background: var(--mint-100); color: var(--ink); }
+.bar.conf { background: var(--sky-bg); color: var(--ink); }
+.bar.res { background: transparent; border: 1px dashed var(--amber); color: var(--ink); }
+.bar.blk { background: repeating-linear-gradient(135deg, var(--grey-bg) 0 6px, var(--surface) 6px 12px); color: var(--muted); border: 1px solid var(--line); }
+.bar.lease { background: var(--mint-50); border-left: 3px solid var(--mint-300); color: var(--ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.legend i { width: 18px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* Payment board */
+.board { display: grid; grid-template-columns: 170px repeat(12, minmax(42px, 1fr)); gap: 4px; min-width: 760px; font-size: 12.5px; align-items: center; }
+.board .mh { color: var(--muted); text-align: center; font-size: 11.5px; }
+.board .rn b { font-weight: 500; font-variant-numeric: tabular-nums; margin-right: 6px; }
+.board .rn { color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell { height: 28px; border-radius: 5px; cursor: pointer; }
+.cell.p { background: var(--mint-100); }
+.cell.pa { background: var(--amber-bg); box-shadow: inset 0 0 0 1px var(--amber); }
+.cell.o { background: var(--coral-bg); box-shadow: inset 0 0 0 1px var(--coral); }
+.cell.d { background: var(--sky-bg); }
+.cell.u { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-2); }
+.cell.n { background: transparent; }
+.cell.sel { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+/* Wizard / forms */
+.steps { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); counter-reset: s; }
+.steps span { display: inline-flex; gap: 8px; align-items: center; counter-increment: s; }
+.steps span::before { content: counter(s); width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line-2); display: grid; place-items: center; font-size: 11px; font-family: var(--mono); }
+.steps span.done { color: var(--ink-2); } .steps span.done::before { content: "✓"; background: var(--mint-100); border-color: var(--mint-100); color: var(--accent); }
+.steps span.on { color: var(--ink); font-weight: 500; } .steps span.on::before { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.choice { border: 1px solid var(--line-2); border-radius: 10px; padding: 18px; background: var(--surface); display: grid; gap: 6px; cursor: pointer; text-align: left; }
+.choice:hover { border-color: var(--muted); }
+.choice[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--mint-100); }
+.choice b { font-size: 15px; font-weight: 600; }
+.choice p { margin: 0; color: var(--muted); font-size: 13px; }
+.choice ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 3px; font-size: 13px; color: var(--ink-2); }
+.choice ul li::before { content: "– "; color: var(--muted); }
+
+.form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+.form .full { grid-column: 1 / -1; }
+label.lb { display: grid; gap: 6px; font-size: 12.5px; color: var(--ink-2); font-weight: 500; }
+label.lb .field { font-weight: 400; }
+.summary { padding: 18px; display: grid; gap: 14px; align-content: start; }
+.summary .ln { display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.summary .ln.t { border-top: 1px solid var(--line); padding-top: 12px; font-weight: 600; font-size: 15px; }
+.summary .ln span:first-child { color: var(--ink-2); }
+
+/* Meter input */
+.mi { width: 110px; border: 1px solid var(--line-2); border-radius: 6px; padding: 5px 8px; font: inherit; font-variant-numeric: tabular-nums; text-align: right; background: var(--surface); color: var(--ink); }
+.mi.warn { border-color: var(--coral); background: var(--coral-bg); }
+.progress { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.progress i { display: block; height: 100%; width: 64%; background: var(--accent); }
+
+/* Receipt */
+.paper { background: #fff; color: #17211d; border: 1px solid var(--line); border-radius: 4px; max-width: 680px; padding: 44px 48px; display: grid; gap: 22px; font-size: 13px; box-shadow: 0 1px 2px rgba(23,33,29,.04), 0 12px 32px rgba(23,33,29,.06); }
+.paper .top { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.paper h3 { margin: 0; font-size: 22px; letter-spacing: .14em; font-weight: 500; }
+.paper .meta { text-align: right; display: grid; gap: 2px; }
+.paper .lbl { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #7d8b86; }
+.paper table td, .paper table th { border-color: #e5ede9; color: #17211d; }
+.paper table th { color: #7d8b86; }
+.paper .tot { display: flex; justify-content: space-between; border-top: 1.5px solid #17211d; padding-top: 10px; font-weight: 600; font-size: 15px; }
+.paper .mut { color: #7d8b86; }
+.paper .logo { width: 30px; height: 30px; border-radius: 8px; background: #dcf1e7; display: grid; place-items: center; color: #2c6a55; font-weight: 600; }
+
+/* Modal */
+.scrim { position: fixed; inset: 0; background: color-mix(in srgb, var(--ink) 28%, transparent); display: grid; place-items: center; padding: 20px; z-index: 30;
+  padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+.modal { background: var(--surface); border-radius: 12px; width: min(540px, 100%); max-height: calc(100vh - 40px); overflow: auto; padding: 24px; display: grid; gap: 18px; box-shadow: 0 24px 60px color-mix(in srgb, var(--ink) 22%, transparent); }
+.modal h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.modal .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.drop { border: 1px dashed var(--line-2); border-radius: 7px; padding: 10px; text-align: center; color: var(--muted); font-size: 13px; }
+.alloc { border: 1px solid var(--line); border-radius: 8px; }
+.alloc .row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.alloc .row:last-child { border-bottom: 0; }
+.ck { width: 16px; height: 16px; border-radius: 4px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; font-size: 11px; }
+.foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.toast { position: fixed; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: max(20px, env(safe-area-inset-right, 0px)); background: var(--ink); color: var(--page); padding: 10px 16px; border-radius: 8px; font-size: 13.5px; z-index: 40; }
+
+@media (max-width: 1080px) {
+  .figures { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .figures > div:nth-child(4) { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); }
+  .figures > div:nth-child(5) { border-top: 1px solid var(--line); }
+  .split, .split.wide { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 860px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .side { position: sticky; top: env(safe-area-inset-top, 0px); height: auto; flex-direction: row; align-items: center; gap: 12px; padding: 10px 16px; z-index: 20;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 25; background: var(--surface); }
+  .prop, .me, nav.menu .sep, nav.menu span.c { display: none; }
+  nav.menu { display: flex; gap: 2px; }
+  nav.menu button { white-space: nowrap; }
+  main { padding: 20px 16px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .figures, .figures.f3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .figures > div { border-left: 0 !important; padding-left: 0 !important; border-top: 1px solid var(--line); }
+  .figures > div:nth-child(-n+2) { border-top: 0; }
+  .choices, .form { grid-template-columns: minmax(0, 1fr); }
+  .paper { padding: 28px 22px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .screen:not([hidden]) { animation: rise .18s ease-out; }
+  @keyframes rise { from { opacity: .6; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+}
+</style>
+
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><i></i>pre-booking</div>
+    <button class="prop" type="button" id="prop-switch"><small>Property</small><b>Sukhumvit Residence <span class="dim">▾</span></b></button>
+    <nav class="menu" aria-label="Main">
+      <button type="button" data-go="today">Today <span class="c">4</span></button>
+      <button type="button" data-go="calendar">Calendar</button>
+      <button type="button" data-go="bookings">Bookings</button>
+      <button type="button" data-go="payments">Payments <span class="c">7</span></button>
+      <button type="button" data-go="meters">Meters</button>
+      <button type="button" data-go="receipt">Documents</button>
+      <div class="sep"></div>
+      <button type="button" data-go="property">Properties</button>
+    </nav>
+    <div class="me"><div class="av">NK</div><div>Nok K.<small>Front desk</small></div></div>
+  </aside>
+
+  <main>
+    <!-- ============ TODAY ============ -->
+    <section class="screen" id="today">
+      <div class="head">
+        <div><h1>Good morning, Nok</h1><p>Monday 26 October 2026 · Sukhumvit Residence</p></div>
+        <div class="actions"><button class="btn primary" type="button" data-go="new">New booking</button></div>
+      </div>
+
+      <div class="figures">
+        <div><div class="n">4</div><div class="l">Arrivals</div></div>
+        <div><div class="n">3</div><div class="l">Departures</div></div>
+        <div><div class="n">38<small> / 50</small></div><div class="l">Occupied tonight</div></div>
+        <div><div class="n">2</div><div class="l">Reserved, not paid</div></div>
+        <div><div class="n">฿47,220</div><div class="l alert">Overdue rent · 3 units</div></div>
+      </div>
+
+      <div class="split">
+        <div class="block">
+          <h2>Arriving today <span>4</span></h2>
+          <div class="list">
+            <div class="it"><span class="unit">101</span><div class="who"><b>John Smith</b><small><span class="tag">Daily</span> 3 nights · paid in full</small></div><button class="btn sm" type="button" data-go="booking-daily">Check in</button></div>
+            <div class="it"><span class="unit">104</span><div class="who"><b>Anna Müller</b><small><span class="tag">Daily</span> ฿2,000 to pay before check-in</small></div><button class="btn sm" type="button" data-modal="pay-daily">Take payment</button></div>
+            <div class="it"><span class="unit">310</span><div class="who"><b>ACME Co., Ltd.</b><small><span class="tag y">Yearly</span> deposit &amp; first month paid</small></div><button class="btn sm" type="button">Check in</button></div>
+            <div class="it"><span class="unit">118</span><div class="who"><b>Kenji Tanaka</b><small><span class="tag">Daily</span> 1 night · paid in full</small></div><button class="btn sm" type="button">Check in</button></div>
+          </div>
+        </div>
+        <div class="block">
+          <h2>Leaving today <span>3</span></h2>
+          <div class="list">
+            <div class="it"><span class="unit">205</span><div class="who"><b>Mali Kongsak</b><small><span class="tag">Daily</span> nothing owed</small></div><button class="btn sm" type="button">Check out</button></div>
+            <div class="it"><span class="unit">112</span><div class="who"><b>Lukas Berg</b><small><span class="tag">Daily</span> nothing owed</small></div><button class="btn sm" type="button">Check out</button></div>
+            <div class="it"><span class="unit">402</span><div class="who"><b>Somchai Prasert</b><small><span class="tag y">Yearly</span> lease ends · read meters, settle deposit</small></div><button class="btn sm" type="button">Check out</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="split wide">
+        <div class="block">
+          <h2>Monthly rent <span>due &amp; overdue</span></h2>
+          <div class="panel tw">
+            <table>
+              <tr><th>Unit</th><th>Tenant</th><th>Period</th><th class="r">Balance</th><th>Status</th><th></th></tr>
+              <tr class="click" data-go="booking-yearly"><td class="unit">201</td><td>ACME Co., Ltd.</td><td>15 Oct – 15 Nov</td><td class="r">฿6,240</td><td><span class="st overdue">11 days overdue</span></td><td class="r"><button class="btn sm" type="button" data-modal="pay">Record</button></td></tr>
+              <tr><td class="unit">302</td><td>Lee Wei</td><td>12 Oct – 12 Nov</td><td class="r">฿15,980</td><td><span class="st overdue">14 days overdue</span></td><td class="r"><button class="btn sm" type="button" data-modal="pay">Record</button></td></tr>
+              <tr><td class="unit">215</td><td>Priya Sharma</td><td>21 Oct – 21 Nov</td><td class="r">฿6,240</td><td><span class="st partial">Part paid</span></td><td class="r"><button class="btn sm" type="button" data-modal="pay">Record</button></td></tr>
+              <tr><td class="unit">309</td><td>Thanawat R.</td><td>26 Oct – 26 Nov</td><td class="r">฿13,500</td><td><span class="st due">Due today</span></td><td class="r"><button class="btn sm" type="button" data-modal="pay">Record</button></td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="block">
+          <h2>To do</h2>
+          <div class="list plain">
+            <div class="it"><div class="who"><b>2 reservations unpaid</b><small>Payment due before check-in on 30 Oct and 2 Nov</small></div><button class="btn quiet sm" type="button" data-go="bookings">View</button></div>
+            <div class="it"><div class="who"><b>Meter reading · 18 units left</b><small>Reading day was 25 Oct</small></div><button class="btn quiet sm" type="button" data-go="meters">Open</button></div>
+            <div class="it"><div class="who"><b>3 leases end within 30 days</b><small>Units 202, 305, 411</small></div><button class="btn quiet sm" type="button">Review</button></div>
+            <div class="it"><div class="who"><b>2 units in maintenance</b><small>102 until 30 Oct · 214 until 4 Nov</small></div><button class="btn quiet sm" type="button" data-go="calendar">Calendar</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CALENDAR ============ -->
+    <section class="screen" id="calendar" hidden>
+      <div class="head">
+        <div><h1>Calendar</h1><p>26 Oct – 8 Nov 2026</p></div>
+        <div class="actions">
+          <div class="seg"><span>Week</span><span class="on">2 weeks</span><span>Month</span><span>Quarter</span></div>
+          <button class="btn" type="button">Block dates</button>
+          <button class="btn primary" type="button" data-go="new">New booking</button>
+        </div>
+      </div>
+      <div class="filters"><button class="btn sm" type="button">‹</button><button class="btn sm" type="button">Today</button><button class="btn sm" type="button">›</button><span class="field">All room types ▾</span><span class="field">Daily &amp; Yearly ▾</span></div>
+      <div class="tw">
+        <div class="cal">
+          <div></div>
+          <div class="dh today">Mon<b>26</b></div><div class="dh">Tue<b>27</b></div><div class="dh">Wed<b>28</b></div><div class="dh">Thu<b>29</b></div><div class="dh we">Fri<b>30</b></div><div class="dh we">Sat<b>31</b></div><div class="dh">Sun<b>1</b></div><div class="dh">Mon<b>2</b></div><div class="dh">Tue<b>3</b></div><div class="dh">Wed<b>4</b></div><div class="dh">Thu<b>5</b></div><div class="dh we">Fri<b>6</b></div><div class="dh we">Sat<b>7</b></div><div class="dh">Sun<b>8</b></div>
+
+          <div class="grp">Studio · 28 m²</div>
+          <div class="rm"><b>101</b><span class="tag">D</span><span class="tag y">Y</span></div>
+          <div style="grid-column: span 3"><div class="bar in" data-go="booking-daily" style="width:100%">John Smith</div></div><div></div><div style="grid-column: span 3"><div class="bar res" style="width:100%">Anna Müller · reserved</div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+          <div class="rm"><b>102</b><span class="tag">D</span></div>
+          <div></div><div style="grid-column: span 4"><div class="bar blk" style="width:100%">Maintenance · AC</div></div><div></div><div style="grid-column: span 3"><div class="bar conf" style="width:100%">Kenji Tanaka</div></div><div></div><div></div><div></div><div></div><div></div>
+          <div class="rm"><b>103</b><span class="tag">D</span></div>
+          <div></div><div></div><div style="grid-column: span 5"><div class="bar conf" style="width:100%">Sofia Rossi · paid</div></div><div></div><div></div><div style="grid-column: span 2"><div class="bar res" style="width:100%">Ana P. · reserved</div></div><div></div><div></div><div></div>
+          <div class="rm"><b>104</b><span class="tag">D</span></div>
+          <div></div><div></div><div></div><div></div><div style="grid-column: span 3"><div class="bar res" style="width:100%">Anna Müller · ฿2,000 due</div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+
+          <div class="grp">One bedroom · 42 m²</div>
+          <div class="rm"><b>201</b><span class="tag y">Y</span></div>
+          <div style="grid-column: span 14"><div class="bar lease" data-go="booking-yearly" style="width:100%">ACME Co., Ltd. · lease to 15 Mar 2027</div></div>
+          <div class="rm"><b>202</b><span class="tag">D</span><span class="tag y">Y</span></div>
+          <div style="grid-column: span 6"><div class="bar lease" style="width:100%">Lee Wei · lease ends 1 Nov</div></div><div style="grid-column: span 3"><div class="bar conf" style="width:100%">Emma Clark</div></div><div style="grid-column: span 5"><div class="bar res" style="width:100%">New lease · Narin T. · reserved</div></div>
+          <div class="rm"><b>203</b><span class="tag y">Y</span></div>
+          <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--mint-100)"></i>In house</span>
+        <span><i style="background:var(--sky-bg)"></i>Confirmed · paid</span>
+        <span><i style="border:1px dashed var(--amber)"></i>Reserved · not paid</span>
+        <span><i style="background:var(--mint-50);border-left:3px solid var(--mint-300)"></i>Yearly lease</span>
+        <span><i style="background:repeating-linear-gradient(135deg,var(--grey-bg) 0 4px,var(--surface) 4px 8px);border:1px solid var(--line)"></i>Blocked</span>
+      </div>
+    </section>
+
+    <!-- ============ BOOKINGS ============ -->
+    <section class="screen" id="bookings" hidden>
+      <div class="head">
+        <div><h1>Bookings</h1><p>124 active across Daily and Yearly</p></div>
+        <div class="actions"><button class="btn" type="button">Export</button><button class="btn primary" type="button" data-go="new">New booking</button></div>
+      </div>
+      <div class="filters">
+        <div class="seg"><span>Upcoming</span><span class="on">Reserved</span><span>In house</span><span>Past</span><span>Cancelled</span></div>
+        <span class="field ph">Search name, code, phone…</span>
+        <span class="field">All modes ▾</span>
+      </div>
+      <div class="panel tw">
+        <table>
+          <tr><th>Booking</th><th>Unit</th><th>Guest</th><th>Stay</th><th>Status</th><th class="r">Total</th><th class="r">To pay</th><th>Pay by</th></tr>
+          <tr class="click" data-go="booking-daily"><td class="code">SKV-BK-0131</td><td class="unit">104</td><td>Anna Müller <span class="tag">Daily</span></td><td>30 Oct – 2 Nov · 3 nights</td><td><span class="st reserved">Reserved</span></td><td class="r">฿5,100</td><td class="r">฿2,000</td><td>30 Oct, 14:00</td></tr>
+          <tr class="click"><td class="code">SKV-BK-0134</td><td class="unit">103</td><td>Ana Pereira <span class="tag">Daily</span></td><td>4 – 6 Nov · 2 nights</td><td><span class="st reserved">Reserved</span></td><td class="r">฿2,800</td><td class="r">฿2,800</td><td>4 Nov, 14:00</td></tr>
+          <tr class="click"><td class="code">SKV-BK-0136</td><td class="unit">202</td><td>Narin Thongdee <span class="tag y">Yearly</span></td><td>3 Nov 2026 – 3 Nov 2027</td><td><span class="st reserved">Reserved</span></td><td class="r">฿45,000</td><td class="r">฿45,000</td><td>3 Nov</td></tr>
+          <tr class="click"><td class="code">SKV-BK-0128</td><td class="unit">115</td><td>David Okafor <span class="tag">Daily</span></td><td>12 – 19 Nov · 7 nights</td><td><span class="st reserved">Reserved</span></td><td class="r">฿9,600</td><td class="r">฿4,600</td><td>12 Nov, 14:00</td></tr>
+        </table>
+      </div>
+      <p class="dim" style="margin:0;font-size:12.5px">A reservation holds the unit until its pay-by time. Unpaid reservations are released automatically and the guest is reminded 24 hours before.</p>
+    </section>
+
+    <!-- ============ NEW BOOKING ============ -->
+    <section class="screen" id="new" hidden>
+      <div>
+        <div class="crumb"><button type="button" data-go="bookings">Bookings</button> / New</div>
+        <div class="head"><div><h1>New booking</h1></div></div>
+      </div>
+      <div class="steps"><span class="done">Rental type</span><span class="on">Dates &amp; unit</span><span>Guest</span><span>Review</span></div>
+      <div class="choices">
+        <button class="choice" type="button" aria-pressed="true" data-mode="daily">
+          <b>Daily</b><p>Nights with check-in and check-out</p>
+          <ul><li>Reserve now, pay in full before check-in</li><li>Water and electricity included</li></ul>
+        </button>
+        <button class="choice" type="button" aria-pressed="false" data-mode="yearly">
+          <b>Yearly</b><p>Lease of one year or more</p>
+          <ul><li>Deposit and first month to move in</li><li>Rent paid monthly, meters billed monthly</li></ul>
+        </button>
+      </div>
+
+      <div class="split wide" id="new-daily">
+        <div class="block">
+          <div class="form">
+            <label class="lb">Check-in<span class="field">Fri 30 Oct 2026</span></label>
+            <label class="lb">Check-out<span class="field">Mon 2 Nov 2026 · 3 nights</span></label>
+            <label class="lb">Guests<span class="field">2 adults</span></label>
+            <label class="lb">Room type<span class="field">Any ▾</span></label>
+          </div>
+          <h2 style="margin-top:12px">Available units <span>5 of 7 studios</span></h2>
+          <div class="panel tw">
+            <table>
+              <tr><th>Unit</th><th>Type</th><th>Floor</th><th class="r">3 nights</th><th></th></tr>
+              <tr><td class="unit">104</td><td>Studio</td><td>1</td><td class="r">฿4,800</td><td class="r"><span class="st paid">Selected</span></td></tr>
+              <tr><td class="unit">106</td><td>Studio</td><td>1</td><td class="r">฿4,800</td><td class="r"><button class="btn sm" type="button">Select</button></td></tr>
+              <tr><td class="unit">110</td><td>Studio · balcony</td><td>1</td><td class="r">฿5,400</td><td class="r"><button class="btn sm" type="button">Select</button></td></tr>
+              <tr><td class="dim" colspan="5">2 unavailable · 101 reserved, 102 blocked for maintenance</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="panel summary">
+          <div><div class="dim" style="font-size:12.5px">Unit 104 · Studio</div><b>30 Oct – 2 Nov 2026</b></div>
+          <div class="ln"><span>Fri 30 Oct</span><span>฿1,700</span></div>
+          <div class="ln"><span>Sat 31 Oct</span><span>฿1,700</span></div>
+          <div class="ln"><span>Sun 1 Nov</span><span>฿1,400</span></div>
+          <div class="ln"><span>Cleaning</span><span>฿300</span></div>
+          <div class="ln t"><span>Total</span><span>฿5,100</span></div>
+          <div class="notice mint">Pay in full by <b>&nbsp;Fri 30 Oct, 14:00</b>. The unit is held until then.</div>
+          <button class="btn primary" type="button" data-go="booking-daily">Continue to guest</button>
+        </div>
+      </div>
+
+      <div class="split wide" id="new-yearly" hidden>
+        <div class="block">
+          <div class="form">
+            <label class="lb">Move-in<span class="field">Tue 3 Nov 2026</span></label>
+            <label class="lb">Term<span class="field">1 year · ends 3 Nov 2027</span></label>
+            <label class="lb">Deposit<span class="field">2 months</span></label>
+            <label class="lb">Rent in advance<span class="field">1 month</span></label>
+          </div>
+          <h2 style="margin-top:12px">Payment schedule <span>12 monthly periods</span></h2>
+          <div class="panel tw">
+            <table>
+              <tr><th>#</th><th>Period</th><th>Due</th><th class="r">Amount</th></tr>
+              <tr><td>0</td><td>Deposit + first month</td><td>3 Nov</td><td class="r">฿45,000</td></tr>
+              <tr><td>2</td><td>3 Dec – 3 Jan</td><td>3 Dec</td><td class="r">฿15,000 + meters</td></tr>
+              <tr><td>3</td><td>3 Jan – 3 Feb</td><td>3 Jan</td><td class="r">฿15,000 + meters</td></tr>
+              <tr><td class="dim" colspan="4">… through 3 Oct 2027</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="panel summary">
+          <div><div class="dim" style="font-size:12.5px">Unit 202 · One bedroom</div><b>3 Nov 2026 – 3 Nov 2027</b></div>
+          <div class="ln"><span>Rent</span><span>฿15,000 / month</span></div>
+          <div class="ln"><span>Deposit · 2 months</span><span>฿30,000</span></div>
+          <div class="ln"><span>First month</span><span>฿15,000</span></div>
+          <div class="ln t"><span>Due to move in</span><span>฿45,000</span></div>
+          <div class="notice mint">The lease confirms once the move-in amount is paid.</div>
+          <button class="btn primary" type="button" data-go="booking-yearly">Continue to tenant</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ BOOKING DAILY ============ -->
+    <section class="screen" id="booking-daily" hidden>
+      <div>
+        <div class="crumb"><button type="button" data-go="bookings">Bookings</button> / SKV-BK-2026-000131</div>
+        <div class="head">
+          <div><h1>Anna Müller</h1><p>Unit 104 · Studio · 30 Oct – 2 Nov 2026 · 3 nights · 2 adults <span class="tag">Daily</span></p></div>
+          <div class="actions"><button class="btn" type="button">Edit</button><button class="btn" type="button" disabled title="Pay in full before check-in">Check in</button><button class="btn primary" type="button" data-modal="pay-daily">Take payment</button></div>
+        </div>
+      </div>
+      <div class="notice"><span><b>Reserved, ฿2,000 to pay.</b> Pay in full by Fri 30 Oct, 14:00 or unit 104 is released. Check-in unlocks once paid.</span></div>
+      <div class="figures f3">
+        <div><div class="n">฿5,100</div><div class="l">Total</div></div>
+        <div><div class="n">฿3,100</div><div class="l">Paid</div></div>
+        <div><div class="n">฿2,000</div><div class="l">To pay</div></div>
+      </div>
+      <div class="tabs"><span class="on">Charges &amp; payments</span><span>Guest</span><span>Documents</span><span>Activity</span></div>
+      <div class="split wide">
+        <div class="block">
+          <h2>Charges</h2>
+          <div class="panel tw"><table>
+            <tr><th>Item</th><th class="r">Amount</th></tr>
+            <tr><td>Fri 30 Oct · weekend rate</td><td class="r">฿1,700</td></tr>
+            <tr><td>Sat 31 Oct · weekend rate</td><td class="r">฿1,700</td></tr>
+            <tr><td>Sun 1 Nov</td><td class="r">฿1,400</td></tr>
+            <tr><td>Cleaning</td><td class="r">฿300</td></tr>
+            <tr><td><b>Total</b></td><td class="r"><b>฿5,100</b></td></tr>
+          </table></div>
+        </div>
+        <div class="block">
+          <h2>Payments</h2>
+          <div class="list plain">
+            <div class="it"><div class="who"><b>฿3,100 · bank transfer</b><small>27 Oct 2026 · ref 88213 · receipt SKV-RC-00051</small></div><button class="btn quiet sm" type="button" data-go="receipt">Receipt</button></div>
+          </div>
+          <div class="dim" style="font-size:12.5px">Booked by phone on 24 Oct by Nok K. Moderate cancellation policy: full refund until 25 Oct, 50% after.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ BOOKING YEARLY ============ -->
+    <section class="screen" id="booking-yearly" hidden>
+      <div>
+        <div class="crumb"><button type="button" data-go="bookings">Bookings</button> / SKV-BK-2026-000119</div>
+        <div class="head">
+          <div><h1>ACME Co., Ltd.</h1><p>Unit 201 · One bedroom · lease 15 Mar 2026 – 15 Mar 2027 · ฿15,000 / month <span class="tag y">Yearly</span></p></div>
+          <div class="actions"><button class="btn" type="button">Issue invoice</button><button class="btn" type="button">Check out</button><button class="btn primary" type="button" data-modal="pay">Record payment</button></div>
+        </div>
+      </div>
+      <div class="figures">
+        <div><div class="n">7<small> / 12</small></div><div class="l">Months paid</div></div>
+        <div><div class="n">฿6,240</div><div class="l alert">Overdue</div></div>
+        <div><div class="n">฿30,000</div><div class="l">Deposit held</div></div>
+        <div><div class="n">15 Nov</div><div class="l">Next due</div></div>
+        <div><div class="n">140<small> days</small></div><div class="l">Until lease ends</div></div>
+      </div>
+      <div class="tabs"><span class="on">Monthly payments</span><span>Lease</span><span>Meters</span><span>Tenant</span><span>Documents</span><span>Activity</span></div>
+      <div class="panel tw">
+        <table>
+          <tr><th>#</th><th>Period</th><th>Due</th><th class="r">Amount</th><th class="r">Paid</th><th class="r">Balance</th><th>Status</th><th>Paid on</th></tr>
+          <tr><td class="dim">0</td><td>Deposit + first month</td><td>15 Mar</td><td class="r">฿45,000</td><td class="r">฿45,000</td><td class="r dim">–</td><td><span class="st paid">Paid</span></td><td>14 Mar 2026</td></tr>
+          <tr><td class="dim">6</td><td>15 Aug – 15 Sep</td><td>15 Aug</td><td class="r">฿16,320</td><td class="r">฿16,320</td><td class="r dim">–</td><td><span class="st paid">Paid</span></td><td>15 Aug 2026</td></tr>
+          <tr><td class="dim">7</td><td>15 Sep – 15 Oct</td><td>15 Sep</td><td class="r">฿16,180</td><td class="r">฿16,180</td><td class="r dim">–</td><td><span class="st paid">Paid</span></td><td>16 Sep 2026</td></tr>
+          <tr><td class="dim">8</td><td>15 Oct – 15 Nov</td><td>15 Oct</td><td class="r">฿16,240</td><td class="r">฿10,000</td><td class="r">฿6,240</td><td><span class="st overdue">11 days overdue</span></td><td class="dim">–</td></tr>
+          <tr class="detail"><td></td><td colspan="7">Rent ฿15,000 · Water 12 units × ฿18 = ฿216 · Electricity 128 units × ฿8 = ฿1,024 (meters 25 Sep → 25 Oct)</td></tr>
+          <tr><td class="dim">9</td><td>15 Nov – 15 Dec</td><td>15 Nov</td><td class="r">฿15,000</td><td class="r dim">–</td><td class="r">฿15,000</td><td><span class="st upcoming">Upcoming</span></td><td class="dim">–</td></tr>
+          <tr><td class="dim">10</td><td>15 Dec – 15 Jan</td><td>15 Dec</td><td class="r">฿15,000</td><td class="r dim">–</td><td class="r">฿15,000</td><td><span class="st upcoming">Upcoming</span></td><td class="dim">–</td></tr>
+        </table>
+      </div>
+      <p class="dim" style="margin:0;font-size:12.5px">Months 1–5 paid on time. Earlier rows hidden · <button class="btn quiet sm" type="button">Show all 12</button></p>
+    </section>
+
+    <!-- ============ PAYMENTS BOARD ============ -->
+    <section class="screen" id="payments" hidden>
+      <div class="head">
+        <div><h1>Payments</h1><p>Yearly leases · 2026</p></div>
+        <div class="actions"><div class="seg"><span>Daily</span><span class="on">Yearly</span></div><span class="field">2026 ▾</span></div>
+      </div>
+      <div class="figures f3">
+        <div><div class="n">฿248,600</div><div class="l">Billed in October</div></div>
+        <div><div class="n">฿201,380</div><div class="l">Received in October</div></div>
+        <div><div class="n">฿47,220</div><div class="l alert">Outstanding</div></div>
+      </div>
+      <div class="tw">
+        <div class="board">
+          <div></div><div class="mh">Jan</div><div class="mh">Feb</div><div class="mh">Mar</div><div class="mh">Apr</div><div class="mh">May</div><div class="mh">Jun</div><div class="mh">Jul</div><div class="mh">Aug</div><div class="mh">Sep</div><div class="mh">Oct</div><div class="mh">Nov</div><div class="mh">Dec</div>
+          <div class="rn"><b>201</b>ACME Co.</div><div class="cell n"></div><div class="cell n"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell o sel" title="15 Oct period · ฿6,240 overdue"></div><div class="cell u"></div><div class="cell u"></div>
+          <div class="rn"><b>202</b>Lee Wei</div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell n"></div><div class="cell n"></div>
+          <div class="rn"><b>215</b>Priya Sharma</div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell pa"></div><div class="cell u"></div><div class="cell u"></div>
+          <div class="rn"><b>302</b>Lee Wei</div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell o"></div><div class="cell u"></div><div class="cell u"></div>
+          <div class="rn"><b>309</b>Thanawat R.</div><div class="cell n"></div><div class="cell n"></div><div class="cell n"></div><div class="cell n"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell d"></div><div class="cell u"></div><div class="cell u"></div>
+          <div class="rn"><b>402</b>Somchai P.</div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell p"></div><div class="cell n"></div><div class="cell n"></div>
+        </div>
+      </div>
+      <div class="split">
+        <div class="legend">
+          <span><i style="background:var(--mint-100)"></i>Paid</span>
+          <span><i style="background:var(--amber-bg);box-shadow:inset 0 0 0 1px var(--amber)"></i>Part paid</span>
+          <span><i style="background:var(--coral-bg);box-shadow:inset 0 0 0 1px var(--coral)"></i>Overdue</span>
+          <span><i style="background:var(--sky-bg)"></i>Due</span>
+          <span><i style="box-shadow:inset 0 0 0 1px var(--line-2)"></i>Upcoming</span>
+        </div>
+        <div class="panel" style="padding:16px;display:grid;gap:8px">
+          <div class="dim" style="font-size:12.5px">Unit 201 · October period</div>
+          <b>15 Oct – 15 Nov · ฿6,240 of ฿16,240 left</b>
+          <span class="st overdue">11 days overdue</span>
+          <div class="actions"><button class="btn primary sm" type="button" data-modal="pay">Record payment</button><button class="btn sm" type="button" data-go="booking-yearly">Open lease</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ METERS ============ -->
+    <section class="screen" id="meters" hidden>
+      <div class="head">
+        <div><h1>Meter readings</h1><p>Electricity · 25 October 2026 · yearly units only</p></div>
+        <div class="actions"><div class="seg"><span>Water</span><span class="on">Electricity</span></div><span class="field">All floors ▾</span></div>
+      </div>
+      <div style="display:grid;gap:8px"><div class="progress"><i></i></div><div class="dim" style="font-size:12.5px">32 of 50 units read · 1 needs checking</div></div>
+      <div class="panel tw">
+        <table>
+          <tr><th>Unit</th><th>Tenant</th><th class="r">Last (25 Sep)</th><th class="r">This month</th><th class="r">Used</th><th class="r">Charge</th></tr>
+          <tr><td class="unit">201</td><td>ACME Co., Ltd.</td><td class="r">4,512</td><td class="r"><input class="mi" id="m201" value="4,640" aria-label="Unit 201 reading"></td><td class="r">128</td><td class="r">฿1,024</td></tr>
+          <tr><td class="unit">202</td><td>Lee Wei</td><td class="r">3,980</td><td class="r"><input class="mi warn" id="m202" value="3,975" aria-label="Unit 202 reading"></td><td class="r" style="color:var(--coral)">−5</td><td class="r dim">Lower than last month</td></tr>
+          <tr><td class="unit">215</td><td>Priya Sharma</td><td class="r">2,040</td><td class="r"><input class="mi" id="m215" value="2,412" aria-label="Unit 215 reading"></td><td class="r">372</td><td class="r">฿2,976 <span class="dim">· 3× usual</span></td></tr>
+          <tr><td class="unit">216</td><td>Tom Hughes</td><td class="r">980</td><td class="r"><input class="mi" id="m216" placeholder="Reading" aria-label="Unit 216 reading"></td><td class="r dim">–</td><td class="r dim">–</td></tr>
+          <tr><td class="unit">217</td><td>Ploy S.</td><td class="r">1,655</td><td class="r"><input class="mi" id="m217" placeholder="Reading" aria-label="Unit 217 reading"></td><td class="r dim">–</td><td class="r dim">–</td></tr>
+        </table>
+      </div>
+      <div class="foot"><span class="dim" style="font-size:12.5px">Saved as you type. Charges go on each tenant's next monthly bill.</span><div class="actions"><button class="btn" type="button">Save for later</button><button class="btn primary" type="button" data-toast="Utilities added to 32 monthly bills">Add to bills</button></div></div>
+    </section>
+
+    <!-- ============ PROPERTY WIZARD ============ -->
+    <section class="screen" id="property" hidden>
+      <div>
+        <div class="crumb"><button type="button">Properties</button> / New</div>
+        <div class="head"><div><h1>Riverside Suites</h1><p>Draft · code RVS · not open for booking yet</p></div><div class="actions"><button class="btn" type="button">Save draft</button></div></div>
+      </div>
+      <div class="steps"><span class="done">Details</span><span class="done">Room types</span><span class="on">Units</span><span>Rates</span><span>Meters</span><span>Staff</span></div>
+      <div class="panel" style="padding:18px;display:grid;gap:14px">
+        <b style="font-size:14px">Add a range of units</b>
+        <div class="form" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+          <label class="lb">From<span class="field">301</span></label>
+          <label class="lb">To<span class="field">320</span></label>
+          <label class="lb">Floor<span class="field">3</span></label>
+          <label class="lb">Room type<span class="field">Studio ▾</span></label>
+          <label class="lb">Rent as<span class="seg"><span class="on">Daily</span><span class="on">Yearly</span></span></label>
+        </div>
+        <div><button class="btn primary" type="button" data-toast="20 units added">Add 20 units</button></div>
+      </div>
+      <div class="panel tw">
+        <table>
+          <tr><th>Unit</th><th>Floor</th><th>Room type</th><th>Daily</th><th>Yearly</th><th></th></tr>
+          <tr><td class="unit">301</td><td>3</td><td>Studio</td><td>Yes</td><td>Yes</td><td class="r"><button class="btn quiet sm" type="button">Edit</button></td></tr>
+          <tr><td class="unit">302</td><td>3</td><td>Studio</td><td>Yes</td><td>Yes</td><td class="r"><button class="btn quiet sm" type="button">Edit</button></td></tr>
+          <tr><td class="unit">303</td><td>3</td><td>One bedroom</td><td class="dim">No</td><td>Yes</td><td class="r"><button class="btn quiet sm" type="button">Edit</button></td></tr>
+          <tr><td class="dim" colspan="6">17 more units</td></tr>
+        </table>
+      </div>
+      <div class="foot"><button class="btn" type="button">Back</button><button class="btn primary" type="button">Next: Rates</button></div>
+    </section>
+
+    <!-- ============ RECEIPT ============ -->
+    <section class="screen" id="receipt" hidden>
+      <div>
+        <div class="crumb"><button type="button" data-go="booking-yearly">ACME Co., Ltd.</button> / Receipt</div>
+        <div class="head"><div><h1>SKV-RC-2026-00042</h1><p>Issued 18 Oct 2026 by Nok K.</p></div><div class="actions"><button class="btn" type="button">Void</button><button class="btn primary" type="button" data-toast="PDF saved to documents">Save PDF</button></div></div>
+      </div>
+      <div class="paper">
+        <div class="top">
+          <div style="display:grid;gap:6px"><div class="logo">S</div><b>Sukhumvit Residence</b><span class="mut">123 Sukhumvit Rd, Khlong Toei, Bangkok 10110<br>Tax ID 0105551234567</span></div>
+          <div class="meta"><h3>RECEIPT</h3><span>No. SKV-RC-2026-00042</span><span class="mut">18 October 2026</span></div>
+        </div>
+        <div style="display:grid;gap:3px"><span class="lbl">Received from</span><b>ACME Co., Ltd.</b><span class="mut">88 Silom Rd, Bang Rak, Bangkok 10500 · Tax ID 0105559876543 · Head office</span><span class="mut">Booking SKV-BK-2026-000119 · Unit 201</span></div>
+        <table>
+          <tr><th>Description</th><th class="r">THB</th></tr>
+          <tr><td>Rent 15 Oct – 15 Nov 2026 (part payment)</td><td class="r">10,000.00</td></tr>
+        </table>
+        <div class="tot"><span>Amount received</span><span>THB 10,000.00</span></div>
+        <div class="mut">Ten thousand baht only</div>
+        <div style="display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap"><span>Bank transfer · ref 1234<br><span class="mut">Remaining for this period THB 6,240.00</span></span><span style="align-self:end">Received by ______________</span></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Record payment (yearly) -->
+<div class="scrim" id="pay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pay-t">
+    <div><h2 id="pay-t">Record payment</h2><div class="sub">ACME Co., Ltd. · Unit 201 · ฿21,240 outstanding</div></div>
+    <div class="form">
+      <label class="lb">Amount<input class="field" id="pay-amt" value="21,240.00"></label>
+      <label class="lb">Date received<input class="field" id="pay-date" value="26 Oct 2026"></label>
+      <label class="lb full">Method<span class="seg"><span class="on">Transfer</span><span>Cash</span><span>Cheque</span><span>Card</span></span></label>
+      <label class="lb">Reference<input class="field" id="pay-ref" placeholder="Bank reference"></label>
+      <label class="lb">Slip<span class="drop">Add image</span></label>
+    </div>
+    <div class="alloc">
+      <div class="row"><span class="ck">✓</span><span>15 Oct – 15 Nov</span><span>฿6,240</span><span class="st paid">Paid</span></div>
+      <div class="row"><span class="ck">✓</span><span>15 Nov – 15 Dec</span><span>฿15,000</span><span class="st paid">Paid</span></div>
+    </div>
+    <div class="dim" style="font-size:12.5px">Applied to the oldest period first · <button class="btn quiet sm" type="button">Choose periods</button> · <button class="btn quiet sm" type="button">Withholding tax</button></div>
+    <div class="foot"><span style="font-size:13px">Issue receipt</span><div class="actions"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Payment saved · receipt SKV-RC-2026-00058">Save payment</button></div></div>
+  </div>
+</div>
+
+<!-- Take payment (daily) -->
+<div class="scrim" id="pay-daily" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="payd-t">
+    <div><h2 id="payd-t">Take payment</h2><div class="sub">Anna Müller · Unit 104 · 30 Oct – 2 Nov</div></div>
+    <div class="form">
+      <label class="lb">Amount<input class="field" id="payd-amt" value="2,000.00"></label>
+      <label class="lb">Date received<input class="field" id="payd-date" value="26 Oct 2026"></label>
+      <label class="lb full">Method<span class="seg"><span>Transfer</span><span class="on">Cash</span><span>Card</span></span></label>
+    </div>
+    <div class="notice mint">This pays the booking in full. It becomes <b>&nbsp;Confirmed&nbsp;</b> and check-in unlocks.</div>
+    <div class="foot"><span style="font-size:13px">Issue receipt</span><div class="actions"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Paid in full · booking confirmed">Save payment</button></div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  var screens = Array.prototype.slice.call(document.querySelectorAll('.screen'));
+  var nav = Array.prototype.slice.call(document.querySelectorAll('nav.menu [data-go]'));
+  var navFor = { 'booking-daily': 'bookings', 'booking-yearly': 'bookings', 'new': 'bookings' };
+  function go(id, push) {
+    if (!screens.some(function (s) { return s.id === id; })) id = 'today';
+    screens.forEach(function (s) { s.hidden = s.id !== id; });
+    var key = navFor[id] || id;
+    nav.forEach(function (b) { b.setAttribute('aria-current', b.getAttribute('data-go') === key ? 'page' : 'false'); });
+    if (push) { try { history.replaceState(null, '', '#' + id); } catch (e) {} }
+    window.scrollTo(0, 0);
+  }
+  var toastEl = document.getElementById('toast'), tt;
+  function toast(msg) { toastEl.textContent = msg; toastEl.hidden = false; clearTimeout(tt); tt = setTimeout(function () { toastEl.hidden = true; }, 2600); }
+  document.addEventListener('click', function (e) {
+    var m = e.target.closest('[data-modal]');
+    if (m) { e.stopPropagation(); document.getElementById(m.getAttribute('data-modal')).hidden = false; return; }
+    var c = e.target.closest('[data-close]');
+    if (c) { var s = c.closest('.scrim'); if (s) s.hidden = true; }
+    var t = e.target.closest('[data-toast]');
+    if (t) toast(t.getAttribute('data-toast'));
+    if (c || t) return;
+    if (e.target.classList && e.target.classList.contains('scrim')) { e.target.hidden = true; return; }
+    var g = e.target.closest('[data-go]');
+    if (g) go(g.getAttribute('data-go'), true);
+    var md = e.target.closest('[data-mode]');
+    if (md) {
+      document.querySelectorAll('[data-mode]').forEach(function (b) { b.setAttribute('aria-pressed', b === md ? 'true' : 'false'); });
+      var y = md.getAttribute('data-mode') === 'yearly';
+      document.getElementById('new-daily').hidden = y;
+      document.getElementById('new-yearly').hidden = !y;
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') document.querySelectorAll('.scrim').forEach(function (s) { s.hidden = true; });
+  });
+  go((location.hash || '').slice(1) || 'today', false);
+})();
+</script>
