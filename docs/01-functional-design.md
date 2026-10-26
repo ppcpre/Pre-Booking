@@ -1,15 +1,25 @@
-# Pre-Booking — Functional Design (v0.2, รอ approve)
+# Pre-Booking — Functional Design (v0.3, รอ approve)
 
-ระบบให้ **พนักงานของบริษัท** จัดการห้องพักและบันทึกการจอง รองรับการเช่า 3 โหมด: **รายวัน (Daily)**, **รายเดือน (Monthly)**, **รายปี (Yearly)**
+ระบบให้ **พนักงานของบริษัท** จัดการที่พัก (เพิ่มได้หลายแห่ง) และบันทึกการจอง รองรับการเช่า 3 โหมด: **รายวัน (Daily)**, **รายเดือน (Monthly)**, **รายปี (Yearly)**
 
 | ชั้น | เทคโนโลยี |
 |---|---|
-| FE | Next.js (App Router) + TypeScript + React · UI ภาษาอังกฤษ |
-| BE | Next.js Server Actions / Route Handlers บน Node.js |
-| DB | PostgreSQL บน **Supabase** (+ Supabase Auth, Storage, pg_cron) |
+| FE | Next.js (App Router) + TypeScript + React · UI และเอกสารภาษาอังกฤษ |
+| BE | Next.js Server Actions / Route Handlers บน **Cloudflare Workers** (ผ่าน OpenNext adapter) |
+| DB | PostgreSQL บน **Supabase** (+ Supabase Auth, Storage, pg_cron) · เชื่อมจาก Workers ผ่าน **Cloudflare Hyperdrive** |
 | แจ้งเตือน | LINE Official Account (Messaging API, free plan) + แจ้งเตือนในแอป |
 
 > เอกสารนี้เป็นการออกแบบ **ฟังก์ชัน ข้อมูล และกฎทางธุรกิจ** เท่านั้น หน้าจอจะออกแบบหลังจากเอกสารนี้ได้รับการ approve
+
+### สิ่งที่เปลี่ยนจาก v0.2
+
+| # | คำตอบ | ผลต่อการออกแบบ |
+|---|---|---|
+| 1 | ให้เลือกก่อนว่าเช่ารายวันหรือรายปี | ขั้นแรกของการสร้างการจอง = **เลือกโหมด** (Daily / Monthly / Yearly) แล้วฟอร์มจึงเปลี่ยนตามโหมด · การจองรายวันเลือกได้ว่าจะติดตามการจ่าย **ทีละคืน** หรือ **ทั้งการจอง** (หัวข้อ 5.1) — *รอยืนยัน ดูหัวข้อ 15* |
+| 2 | ยังไม่ทำเรื่อง VAT | ตัด VAT และใบกำกับภาษีออกจาก MVP เหลือ **Invoice + Receipt** · ออกแบบให้เพิ่ม VAT ภายหลังได้ (เฟส 2) |
+| 3 | ใช้ EN | UI **และเอกสาร** (Invoice / Receipt / สัญญา) เป็นภาษาอังกฤษ |
+| 4 | รองรับการเพิ่มที่พัก | เพิ่มขั้นตอนเพิ่มที่พักแบบทีละขั้น (setup wizard), สลับที่พักในแอป, กำหนดสิทธิ์พนักงานรายที่พัก, เลขที่เอกสารแยกตามที่พัก (M2) |
+| 5 | ใช้ Cloudflare | Deploy บน Cloudflare Workers + Hyperdrive + Cron Triggers (หัวข้อ 9.1) |
 
 ### สิ่งที่เปลี่ยนจาก v0.1
 
@@ -53,14 +63,14 @@
 
 ```
 BusinessSettings (1 แถว)
-Property (อาคาร)
+Property (ที่พัก — เพิ่มได้หลายแห่ง) ── PropertyStaff
  ├── RoomType ── RatePlan (DAILY / MONTHLY / YEARLY)
  └── Unit (ห้อง) ── Meter (น้ำ/ไฟ)
        └── Booking ──(MONTHLY/YEARLY)──> Lease
              ├── Guest (ผู้เข้าพักหลัก + ผู้พักร่วม)
              ├── ChargePeriod (งวด: รายคืน / รายเดือน / งวดรายปี) ── ChargeLine
              ├── Payment ── PaymentAllocation ──> ChargePeriod
-             ├── Document (ใบแจ้งหนี้ / ใบเสร็จ / ใบกำกับภาษี / ใบลดหนี้)
+             ├── Document (Invoice / Receipt)
              └── Deposit ── DepositDeduction
 ```
 
@@ -91,13 +101,18 @@ Property (อาคาร)
 | M1-01 | Login | Supabase Auth (email + password), ลืมรหัสผ่าน | 1 |
 | M1-02 | จัดการพนักงาน | Admin เชิญพนักงานทางอีเมล, ปิดการใช้งานบัญชี | 1 |
 | M1-03 | บทบาท | `ADMIN` (ทุกอย่าง + ตั้งค่า), `MANAGER` (ทุกอย่างยกเว้นจัดการผู้ใช้), `FRONT_DESK` (จอง/เช็กอิน/รับเงิน/จดมิเตอร์), `ACCOUNTANT` (การเงิน/เอกสาร/รายงาน, ดูการจองได้) | 1 |
-| M1-04 | ตั้งค่าธุรกิจ | ชื่อ, ที่อยู่, เลขผู้เสียภาษี, สาขา, จดทะเบียน VAT หรือไม่, โลโก้, รูปแบบเลขที่เอกสาร | 1 |
+| M1-04 | ตั้งค่าธุรกิจ | ชื่อ, ที่อยู่, เลขผู้เสียภาษี (แสดงบนเอกสาร ถ้ามี), โลโก้ | 1 |
+| M1-05 | สิทธิ์รายที่พัก | ADMIN เห็นทุกที่พัก · บทบาทอื่นเห็นเฉพาะที่พักที่ได้รับมอบหมาย | 1 |
 
-### M2 — อาคารและห้อง
+### M2 — ที่พักและห้อง (เพิ่มที่พักได้ไม่จำกัด)
 
 | ID | ฟังก์ชัน | รายละเอียด | P |
 |---|---|---|---|
-| M2-01 | CRUD Property | ชื่อ, ที่อยู่, เวลาเช็กอิน/เอาต์, วันจดมิเตอร์ประจำเดือน | 1 |
+| M2-00 | **ตัวช่วยเพิ่มที่พัก (Setup wizard)** | 1) ข้อมูลที่พัก → 2) ประเภทห้อง → 3) เพิ่มห้อง (เพิ่มทีละหลายห้องได้ เช่น 101–120) → 4) โหมดที่เปิดและราคา → 5) อัตราค่าน้ำ/ไฟ + เลขมิเตอร์เริ่มต้น → 6) มอบหมายพนักงาน · บันทึกเป็น draft ได้ เปิดใช้งานเมื่อครบ | 1 |
+| M2-01 | CRUD Property | ชื่อ, **รหัสย่อ** (ใช้ในเลขที่เอกสาร เช่น `SKV`), ประเภท (Apartment / Hotel / House / Condo), ที่อยู่, เบอร์ติดต่อ, เวลาเช็กอิน/เอาต์, วันจดมิเตอร์ประจำเดือน, ข้อมูลผู้รับเงินบนเอกสาร (ถ้าต่างจากบริษัท) | 1 |
+| M2-01a | สลับที่พัก | ตัวเลือกที่พักบนแถบด้านบน + มุมมอง "All properties" สำหรับ Dashboard/รายงาน | 1 |
+| M2-01b | ปิดใช้งานที่พัก | `ARCHIVED` — ข้อมูลเดิมยังอยู่ แต่จองใหม่ไม่ได้ | 1 |
+| M2-01c | คัดลอกการตั้งค่า | สร้างที่พักใหม่โดยคัดลอกประเภทห้อง/ราคา/ค่าบริการจากที่พักเดิม | 2 |
 | M2-02 | CRUD RoomType | ชื่อ, ขนาด, จำนวนคนสูงสุด, สิ่งอำนวยความสะดวก, รูป | 1 |
 | M2-03 | CRUD Unit | เลขห้อง, ชั้น, โหมดที่เปิด, สถานะ (ACTIVE / MAINTENANCE / INACTIVE) | 1 |
 | M2-04 | ปิดห้องชั่วคราว (Block) | ซ่อม/ใช้เอง — ชนกับการจองโดยอัตโนมัติ | 1 |
@@ -114,7 +129,7 @@ Property (อาคาร)
 | M3-05 | Rate plan รายปี | ค่าเช่า/ปี หรือส่วนลด % จากรายเดือน, รูปแบบงวด | 1 |
 | M3-06 | ค่าบริการเพิ่ม | ทำความสะอาด, คนเพิ่ม, ที่จอดรถ, เน็ต, เฟอร์นิเจอร์ — ต่อการจอง / ต่อคืน / ต่อเดือน / ตอนย้ายออก | 1 |
 | M3-07 | อัตราค่าน้ำ/ไฟ | บาท/หน่วย, ค่าขั้นต่ำต่อเดือน, มีผลตั้งแต่วันที่ | 1 |
-| M3-08 | การตั้งค่าภาษีตามประเภทรายการ | แต่ละประเภทรายการกำหนด `VAT_7` / `EXEMPT` (ดูหัวข้อ 7.2) | 1 |
+| M3-08 | การตั้งค่า VAT ตามประเภทรายการ | ยังไม่ทำ — ดูหัวข้อ 7.2 | 2 |
 | M3-09 | ตัวคำนวณราคา (Quote) | คำนวณราคาแยกรายการ + แสดงตัวอย่างตารางงวดก่อนยืนยัน | 1 |
 | M3-10 | ปรับราคาเอง | พนักงานแก้ราคา/ให้ส่วนลดตอนจองได้ (ต้องใส่เหตุผล, จำกัดตามบทบาท) | 1 |
 
@@ -131,7 +146,7 @@ Property (อาคาร)
 
 | ID | ฟังก์ชัน | รายละเอียด | P |
 |---|---|---|---|
-| M5-01 | สร้างการจอง | เลือกห้อง โหมด วันที่ ผู้เข้าพัก → quote → บันทึก | 1 |
+| M5-01 | สร้างการจอง | **ขั้นที่ 1 เลือกโหมด** (Daily / Monthly / Yearly) → ขั้นที่ 2 เลือกที่พัก, วันที่/ระยะเวลา (รายวัน = check-in/out · รายเดือน = วันเข้า + จำนวนเดือน · รายปี = วันเข้า + จำนวนปี), จำนวนคน → ขั้นที่ 3 เลือกห้องว่าง (แสดงเฉพาะห้องที่เปิดโหมดนั้น) → ขั้นที่ 4 ผู้เข้าพัก → ขั้นที่ 5 สรุปราคา + ตารางงวด → บันทึก | 1 |
 | M5-02 | Hold | ล็อกห้องระหว่างรอมัดจำ มีเวลาหมดอายุ (ตั้งค่าได้ เช่น 24 ชม.) | 1 |
 | M5-03 | ยืนยันการจอง | → `CONFIRMED` + สร้างงวด (charge periods) | 1 |
 | M5-04 | แก้ไข/ย้ายห้อง | ตรวจห้องว่างใหม่, คำนวณใหม่, ปรับงวดที่ยังไม่จ่าย | 1 |
@@ -166,7 +181,7 @@ Property (อาคาร)
 | M7-05 | ยกเลิกรายการรับเงิน | void พร้อมเหตุผล → งวดกลับเป็นสถานะเดิม, เอกสารที่ออกไปแล้วต้อง void ตาม | 1 |
 | M7-06 | ยกเว้น/ลดยอดงวด | `WAIVED` หรือเพิ่มบรรทัดส่วนลด (ต้องใส่เหตุผล, MANAGER ขึ้นไป) | 1 |
 | M7-07 | ค่าปรับจ่ายช้า | เกิน grace period → เพิ่มบรรทัด `LATE_FEE` (เหมา/ต่อวัน, ตั้งค่าได้, ปิดได้) | 1 |
-| M7-08 | ภาษีหัก ณ ที่จ่าย | ผู้เช่าเป็นนิติบุคคลหัก 5%: บันทึกยอดหัก + เลขที่หนังสือรับรอง → ยอดงวดถือว่าจ่ายครบ | 1 |
+| M7-08 | ภาษีหัก ณ ที่จ่าย | ผู้เช่าเป็นนิติบุคคลหัก 5%: บันทึกยอดหัก + เลขที่หนังสือรับรอง → ยอดงวดถือว่าจ่ายครบ (ไม่เกี่ยวกับ VAT จึงคงไว้) | 1 |
 | M7-09 | เงินประกัน | รับ → ถือ → หักค่าเสียหาย (รายการ + รูป) → คืน / ออกบิลเพิ่มถ้าไม่พอ | 1 |
 | M7-10 | ยอดค้างชำระ | รายการงวด OVERDUE แยกตามจำนวนวันที่ค้าง | 1 |
 | ~~M7-05 เดิม~~ | ~~PromptPay / Payment gateway~~ | ตัดออก | – |
@@ -180,24 +195,24 @@ Property (อาคาร)
 | M8-03 | ตรวจค่าผิดปกติ | เลขลดลง, ใช้มากกว่าค่าเฉลี่ย 3 เดือนเกิน X%, ห้องที่ยังไม่ได้จด | 1 |
 | M8-04 | คิดค่าน้ำ/ไฟเข้างวด | หน่วยที่ใช้ × เรท (ไม่ต่ำกว่าค่าขั้นต่ำ) → บรรทัดในงวดถัดไป (หัวข้อ 6.4) | 1 |
 
-### M9 — เอกสาร (ใบแจ้งหนี้ / ใบเสร็จ / ใบกำกับภาษี)
+### M9 — เอกสาร (Invoice / Receipt) — ภาษาอังกฤษ
 
 | ID | ฟังก์ชัน | รายละเอียด | P |
 |---|---|---|---|
-| M9-01 | ใบแจ้งหนี้ (Invoice) | ออกจากงวด (รายเดือน/รายปี) หรือทั้งการจอง (รายวัน) | 1 |
-| M9-02 | ใบเสร็จรับเงิน / ใบกำกับภาษี | ออกจากรายการรับเงิน · ถ้ามีรายการต้องเสีย VAT → "Receipt / Tax Invoice" · ถ้ายกเว้นทั้งหมด → "Receipt" | 1 |
-| M9-03 | ใบกำกับภาษีเต็มรูป | ข้อมูลผู้ซื้อ: ชื่อ, ที่อยู่, เลขผู้เสียภาษี, สาขา (ดึงจากผู้เข้าพัก/บริษัท แก้ได้ก่อนออก) | 1 |
-| M9-04 | เลขที่เอกสาร | เลขต่อเนื่องแยกตามประเภทและปี เช่น `INV-2026-00001`, `RT-2026-00001`, `CN-2026-00001` | 1 |
-| M9-05 | Void + ออกใหม่ / ใบลดหนี้ | ห้ามลบ ห้ามแก้หลังออกแล้ว | 1 |
-| M9-06 | PDF + พิมพ์ซ้ำ (สำเนา) | เก็บ PDF ใน Storage, พิมพ์ซ้ำมีคำว่า "COPY" | 1 |
-| M9-07 | รายงานภาษีขาย | รายการใบกำกับภาษีรายเดือน (ยื่น ภ.พ.30) | 1 |
+| M9-01 | Invoice (ใบแจ้งหนี้) | ออกจากงวด (รายเดือน/รายปี) หรือทั้งการจอง (รายวัน) | 1 |
+| M9-02 | Receipt (ใบเสร็จ) | ออกจากรายการรับเงิน · แสดงงวดที่ชำระ, ยอด, วันที่รับเงิน, วิธีชำระ | 1 |
+| M9-03 | ข้อมูลผู้จ่าย (Bill to) | ชื่อ/ที่อยู่/เลขผู้เสียภาษี (ถ้ามี) ดึงจากผู้เข้าพักหรือบริษัท แก้ได้ก่อนออก | 1 |
+| M9-04 | เลขที่เอกสาร | ต่อเนื่อง **แยกตามที่พัก ประเภท และปี** เช่น `SKV-INV-2026-00001`, `SKV-RC-2026-00001` | 1 |
+| M9-05 | Void + ออกใหม่ | ห้ามลบ ห้ามแก้หลังออกแล้ว | 1 |
+| M9-06 | พิมพ์ / PDF | หน้า A4 สำหรับพิมพ์ + บันทึก PDF, พิมพ์ซ้ำมีคำว่า "COPY" | 1 |
+| M9-07 | Tax Invoice / Credit Note / รายงานภาษีขาย | เมื่อเริ่มใช้ VAT | 2 |
 
 ### M10 — ผู้เข้าพัก/ผู้เช่า
 
 | ID | ฟังก์ชัน | รายละเอียด | P |
 |---|---|---|---|
-| M10-01 | ข้อมูลผู้เข้าพัก | ชื่อ, เบอร์, อีเมล, LINE ID, สัญชาติ, ที่อยู่สำหรับออกใบกำกับ | 1 |
-| M10-02 | ผู้เช่าเป็นบริษัท | ชื่อบริษัท, เลขผู้เสียภาษี, สาขา (ใช้ออกใบกำกับและคิดหัก ณ ที่จ่าย) | 1 |
+| M10-01 | ข้อมูลผู้เข้าพัก | ชื่อ, เบอร์, อีเมล, LINE ID, สัญชาติ, ที่อยู่สำหรับออกเอกสาร (Bill to) | 1 |
+| M10-02 | ผู้เช่าเป็นบริษัท | ชื่อบริษัท, เลขผู้เสียภาษี, สาขา (ใช้ออกเอกสารและคิดหัก ณ ที่จ่าย) | 1 |
 | M10-03 | เอกสารยืนยันตัวตน | private storage, จำกัดสิทธิ์การดู | 1 |
 | M10-04 | ผู้พักร่วม | | 1 |
 | M10-05 | ประวัติ & Blacklist | | 2 |
@@ -220,7 +235,8 @@ Property (อาคาร)
 | M12-01 | อัตราการเข้าพัก (แยกโหมด/ประเภทห้อง/ช่วงเวลา) | 1 |
 | M12-02 | รายรับ (ตามวันที่รับเงินจริง) แยกค่าเช่า/น้ำ/ไฟ/บริการ/โหมด | 1 |
 | M12-03 | ยอดค้างชำระ & เงินประกันคงค้าง | 1 |
-| M12-04 | รายงานภาษีขาย | 1 |
+| M12-04 | รายงานภาษีขาย (เมื่อเริ่มใช้ VAT) | 2 |
+| M12-07 | เปรียบเทียบระหว่างที่พัก (occupancy / รายรับ / ยอดค้าง) | 1 |
 | M12-05 | Export CSV/Excel | 1 |
 | M12-06 | ADR / RevPAR (รายวัน) | 2 |
 
@@ -270,7 +286,7 @@ UPCOMING ──(ถึงวันครบกำหนด − N วัน)─�
 สถานะ **คำนวณจากยอดเงินและวันที่** (ไม่ให้พนักงานเปลี่ยนเองตรงๆ) ยกเว้น `WAIVED`
 
 ### Document
-`ISSUED → VOID` (ไม่มี draft สำหรับใบเสร็จ/ใบกำกับ — ออกแล้วถือว่าออก)
+`ISSUED → VOID` (ไม่มี draft — ออกแล้วถือว่าออก)
 
 ---
 
@@ -280,13 +296,14 @@ UPCOMING ──(ถึงวันครบกำหนด − N วัน)─�
 
 | โหมด | งวด | วันครบกำหนด (ค่าเริ่มต้น) |
 |---|---|---|
-| รายวัน | งวดที่ 0: มัดจำการจอง (ถ้ามี) · งวดที่ 1..N: คืนละ 1 งวด `[d, d+1)` | วันเช็กอิน (หรือตั้งค่าให้เป็นวันของคืนนั้น) |
+| รายวัน — `PER_STAY` | งวดที่ 0: มัดจำการจอง (ถ้ามี) · งวดที่ 1: ทั้งการจอง `[check_in, check_out)` | วันเช็กอิน |
+| รายวัน — `PER_NIGHT` | งวดที่ 0: มัดจำการจอง (ถ้ามี) · งวดที่ 1..N: คืนละ 1 งวด `[d, d+1)` | วันของคืนนั้น |
 | รายเดือน | งวดที่ 0: เงินประกัน + ค่าแรกเข้า · งวดที่ 1..N: `[วันเข้า + (n−1) เดือน, วันเข้า + n เดือน)` | วันแรกของงวด (+ grace days) |
 | รายปี | งวดที่ 0: เงินประกัน · งวดค่าเช่าตามรูปแบบ (12 / 4 / 2 / 1 งวด) · ค่าน้ำ/ไฟเป็นงวดรายเดือนแยก ถ้าค่าเช่าไม่ได้จ่ายรายเดือน | วันแรกของงวด |
 
 - **ค่าเช่าล่วงหน้า M เดือน** = งวดที่ 1..M มีวันครบกำหนดเป็นวันทำสัญญา
 - **วันที่ 29–31:** ถ้าเดือนนั้นไม่มีวันที่ดังกล่าว ใช้วันสุดท้ายของเดือน (เข้า 31 ม.ค. → งวดถัดไป 28/29 ก.พ. → 31 มี.ค.)
-- **รายวันพักยาว:** 1 คืน = 1 งวด ทำให้เห็นสถานะรายวันได้ ใบแจ้งหนี้รวมหลายคืนเป็นใบเดียวได้
+- **รายวันเลือกได้ตอนจอง** (`bookings.daily_billing`): `PER_STAY` (ค่าเริ่มต้น เหมาะกับพักสั้น) หรือ `PER_NIGHT` (เหมาะกับพักยาวที่จ่ายเป็นรายวัน เห็นสถานะทีละวัน) · ระบบแนะนำ `PER_NIGHT` อัตโนมัติเมื่อพัก ≥ 7 คืน · เปลี่ยนได้เฉพาะตอนที่ยังไม่มีการรับเงิน
 
 ### 5.2 ขั้นตอนบันทึกรับเงิน
 
@@ -296,7 +313,7 @@ UPCOMING ──(ถึงวันครบกำหนด − N วัน)─�
 3. กรอก: ยอดเงิน, วันที่รับเงิน (ค่าเริ่มต้น = วันนี้, ย้อนหลังได้), วิธีชำระ, เลขอ้างอิง, สลิป (optional), หัก ณ ที่จ่าย (optional)
 4. เลือกการตัดยอด: [อัตโนมัติ: งวดเก่าสุดก่อน] หรือ [เลือกงวดเอง]
 5. บันทึก (transaction เดียว): payments + payment_allocations + อัปเดตยอด/สถานะงวด + audit log
-6. ถามว่าจะออก "Receipt / Tax Invoice" เลยไหม → ออกเลขที่ + PDF
+6. ถามว่าจะออก Receipt เลยไหม → ออกเลขที่ + PDF
 ```
 
 - รับเงินเกินยอด → เก็บเป็น **เครดิตคงเหลือ** ของการจอง ใช้ตัดงวดถัดไปได้
@@ -316,7 +333,7 @@ for each night in [check_in, check_out):
     price = date_override ?? seasonal_rate ?? (isFriSat ? weekend_rate : base_rate)
 subtotal = Σ price − LOS discount (เฟส 2)
 fees     = cleaning + extra guest × nights + add-ons
-total    = subtotal + fees   (VAT คิดตามการตั้งค่า inclusive/exclusive)
+total    = subtotal + fees   (MVP ไม่คิด VAT)
 ```
 ตรวจ min/max nights, max occupancy · ถ้าพัก ≥ 28 คืน แนะนำให้เปลี่ยนเป็นรายเดือน
 
@@ -341,27 +358,18 @@ total    = subtotal + fees   (VAT คิดตามการตั้งค่�
 
 ---
 
-## 7. ใบเสร็จและใบกำกับภาษี
+## 7. Invoice และ Receipt
 
-### 7.1 ข้อมูลบนใบกำกับภาษีเต็มรูป (ตามประมวลรัษฎากร ม.86/4)
-1. คำว่า "ใบกำกับภาษี" (เด่นชัด)
-2. ชื่อ ที่อยู่ เลขประจำตัวผู้เสียภาษีของผู้ขาย + สำนักงานใหญ่/สาขา
-3. ชื่อ ที่อยู่ ของผู้ซื้อ (+ เลขผู้เสียภาษีและสาขา ถ้าผู้ซื้อจดทะเบียน VAT)
-4. เลขที่เอกสาร
-5. รายการ จำนวน มูลค่า
-6. ภาษีมูลค่าเพิ่ม แยกจากมูลค่าสินค้า/บริการ
-7. วันที่ออก
+### 7.1 MVP (ไม่มี VAT)
+- **Invoice:** หัวเอกสาร (ข้อมูลที่พัก/บริษัท + โลโก้), Bill to, เลขที่, วันที่ออก, วันครบกำหนด, ห้อง/การจอง, รายการ (งวด, ค่าเช่า, ค่าน้ำ/ไฟพร้อมเลขมิเตอร์, ค่าบริการ, ค่าปรับ, ส่วนลด), ยอดรวม, ยอดค้างยกมา, ช่องทางการชำระ (เลขบัญชี/QR ที่ host ตั้งไว้ — เป็นรูปภาพ ไม่มีการชำระออนไลน์)
+- **Receipt:** เลขที่, วันที่รับเงิน, ได้รับจาก, รายการงวดที่ชำระ, ยอดรับ, หัก ณ ที่จ่าย (ถ้ามี), วิธีชำระ/เลขอ้างอิง, ผู้รับเงิน
+- **ภาษา:** ภาษาอังกฤษ · ตัวเลขเงินแสดงเป็น `THB 12,500.00` + จำนวนเงินเป็นตัวอักษรภาษาอังกฤษ
+- เอกสารเก็บ snapshot ข้อมูลทั้งหมดตอนออก (แก้ข้อมูลภายหลังไม่กระทบเอกสารเดิม)
 
-ระบบออกเป็น **"ใบเสร็จรับเงิน/ใบกำกับภาษี" (Receipt / Tax Invoice)** ใบเดียว ณ วันที่รับเงิน (ภาษีของบริการเกิดเมื่อได้รับชำระ)
-
-### 7.2 ⚠️ VAT แยกตามประเภทรายการ (ควรยืนยันกับนักบัญชี)
-- **ให้เช่าที่พักรายวัน (โรงแรม/ที่พักชั่วคราว)** โดยทั่วไป **ต้องเสีย VAT**
-- **ให้เช่าห้องเพื่ออยู่อาศัยระยะยาว (อสังหาริมทรัพย์)** โดยทั่วไป **ได้รับยกเว้น VAT** แต่ค่าบริการอื่น (เฟอร์นิเจอร์, ทำความสะอาด, ค่าน้ำ/ไฟที่เรียกเก็บต่อ ฯลฯ) อาจต้องเสีย VAT
-
-ระบบจึงให้ตั้งค่า `vat_mode` **ต่อประเภทรายการ × โหมด** แทนการตั้งค่าเดียวทั้งระบบ · ใบเอกสารแสดง: มูลค่าที่เสียภาษี, VAT 7%, มูลค่าที่ได้รับยกเว้น แยกกัน · ถ้าธุรกิจไม่ได้จดทะเบียน VAT ระบบออกได้แค่ "Receipt"
-
-### 7.3 ภาษาบนเอกสาร
-UI เป็นภาษาอังกฤษ แต่เอกสารภาษีต้องเป็นภาษาไทย → แนะนำ **เอกสาร 2 ภาษา (TH/EN)**
+### 7.2 เฟส 2: VAT (ออกแบบเผื่อไว้)
+- เพิ่ม `vat_mode` ต่อประเภทรายการ, ตั้งค่า `vat_registered` ระดับธุรกิจ, เอกสาร Receipt / Tax Invoice + Credit Note, รายงานภาษีขาย
+- ⚠️ ใบกำกับภาษีตามกฎหมายไทยต้องมีภาษาไทย (หรือได้รับอนุญาต) → ตอนเริ่มใช้ VAT ต้องทำเอกสารภาษีเป็น 2 ภาษา และควรยืนยันการคิด VAT แต่ละประเภทรายการกับนักบัญชี (ค่าที่พักรายวันกับค่าเช่าที่อยู่อาศัยระยะยาวมีกฎต่างกัน)
+- schema MVP ไม่มีคอลัมน์ VAT แต่โครงสร้าง `charge_lines` / `documents` เพิ่มคอลัมน์ได้โดยไม่กระทบข้อมูลเดิม
 
 ---
 
@@ -394,11 +402,26 @@ UI เป็นภาษาอังกฤษ แต่เอกสารภา�
 | **Database** | Postgres + extensions `btree_gist`, `citext`, `pgcrypto`, `pg_cron` · migration ด้วย Supabase CLI (`supabase/migrations/*.sql`) |
 | **Auth** | Email/password, admin เชิญพนักงาน (`auth.admin.inviteUserByEmail`), ตาราง `profiles` (role) ผูกกับ `auth.users` |
 | **RLS** | เปิดทุกตาราง · policy ตาม role ผ่านฟังก์ชัน `app.current_role()` · ฝั่ง client อ่านได้เฉพาะที่จำเป็น การเขียนทั้งหมดผ่าน server |
-| **Data access ฝั่ง server** | **Drizzle ORM** ต่อผ่าน Supavisor (transaction mode, `prepare: false`) สำหรับ business logic ที่ต้องใช้ transaction · ใช้ `@supabase/ssr` สำหรับ session/auth |
+| **Data access ฝั่ง server** | **Drizzle ORM** + `postgres` (postgres.js) ต่อผ่าน **Cloudflare Hyperdrive** → Supabase (direct connection) สำหรับ business logic ที่ต้องใช้ transaction · ใช้ `@supabase/ssr` สำหรับ session/auth |
 | **Storage** | Private buckets: `slips`, `id-documents`, `contracts`, `documents` (PDF), `meter-photos` · เข้าถึงผ่าน signed URL อายุสั้น |
-| **Scheduled jobs** | `pg_cron` สำหรับงาน SQL ล้วน · งานที่ต้องใช้ TypeScript (ส่ง LINE, สร้าง PDF) ให้ `pg_cron` + `pg_net` เรียก Route Handler `/api/cron/*` ที่ป้องกันด้วย secret |
+| **Scheduled jobs** | `pg_cron` สำหรับงาน SQL ล้วน · งานที่ต้องใช้ TypeScript (ส่ง LINE) ใช้ **Cloudflare Cron Triggers** (หัวข้อ 9.1) |
 | **Region** | Singapore (`ap-southeast-1`) ใกล้ไทยที่สุด |
 | **Backup** | Free plan ไม่มี PITR และ **โปรเจกต์ถูกพักเมื่อไม่มีการใช้งาน 7 วัน** → สำหรับใช้งานจริงแนะนำ Pro plan |
+
+### 9.1 Deploy บน Cloudflare
+
+| ส่วน | การใช้งาน |
+|---|---|
+| **Next.js runtime** | Cloudflare Workers ผ่าน `@opennextjs/cloudflare` (เปิด `nodejs_compat`) · ไม่ใช้ `@cloudflare/next-on-pages` (เลิกพัฒนาแล้ว) |
+| **DB connection** | **Hyperdrive** ทำ connection pooling + ลด latency จาก Workers ไป Supabase · ใช้ `env.HYPERDRIVE.connectionString` สร้าง client ต่อ request |
+| **Cron** | Worker แยกตัวเล็ก (`cron-worker`) ใช้ Cron Triggers เรียก `/api/cron/daily-digest` พร้อม secret (เวลาเป็น UTC → 08:00 ไทย = `0 1 * * *`) |
+| **PDF** | Workers ไม่มี Chromium และไลบรารีสร้าง PDF ฝั่ง server ใช้กับ Workers ได้จำกัด → แสดงเอกสารเป็น **หน้า HTML ขนาด A4** (print CSS) แล้วสร้าง PDF **ฝั่ง browser** (`@react-pdf/renderer`) แล้วอัปโหลดเก็บ · ข้อมูลจริงของเอกสารอยู่ใน `documents` (snapshot) เสมอ |
+| **LINE webhook** | Route Handler บน Workers ตรวจ `x-line-signature` ด้วย Web Crypto (HMAC-SHA256) |
+| **Secrets** | `wrangler secret put` — Supabase service key, LINE channel secret/token, CRON_SECRET |
+| **Domain / Security** | ใช้ Cloudflare DNS + SSL · ตัวเลือก: **Cloudflare Access** ครอบหน้า admin (ฟรีสูงสุด 50 ผู้ใช้) เป็นชั้นป้องกันเพิ่ม |
+| **รูปภาพ/ไฟล์** | เก็บใน Supabase Storage (เข้ากับ RLS) · ย้ายไป Cloudflare R2 ได้ภายหลังถ้าต้องการลดค่า egress |
+| **แผนที่ใช้** | แนะนำ **Workers Paid (~USD 5/เดือน)**: แผนฟรีจำกัดขนาด bundle และ CPU time ต่อ request ซึ่งแอป Next.js ขนาดนี้มักเกิน (ตรวจตัวเลขล่าสุดในหน้า pricing ของ Cloudflare) |
+| **Local dev** | `next dev` ปกติ + `opennextjs-cloudflare preview` ก่อน deploy เพื่อทดสอบบน runtime ของ Workers |
 
 ---
 
@@ -411,7 +434,7 @@ UI เป็นภาษาอังกฤษ แต่เอกสารภา�
 | `apply_late_fees` | ทุกวัน 00:10 | pg_cron (SQL) | เพิ่ม/อัปเดตบรรทัด LATE_FEE (idempotent ต่องวด) |
 | `mark_no_show` | ทุกวัน (หลังเวลาตัด) | pg_cron (SQL) | รายวันที่ไม่เช็กอิน → NO_SHOW |
 | `lease_lifecycle` | ทุกวัน | pg_cron (SQL) | สัญญาถึงวันสิ้นสุด → ENDED |
-| `daily_digest` | ทุกวัน 08:00 (เวลาไทย) | `/api/cron/daily-digest` | ส่งสรุปเข้ากลุ่ม LINE + แจ้งเตือนในแอป |
+| `daily_digest` | ทุกวัน 08:00 (เวลาไทย) | Cloudflare Cron → `/api/cron/daily-digest` | ส่งสรุปเข้ากลุ่ม LINE (แยกตามที่พัก) + แจ้งเตือนในแอป |
 | `ical_sync` | ทุก 15 นาที | เฟส 2 | |
 
 ทุก job ต้อง **idempotent** (รันซ้ำแล้วผลเหมือนเดิม) · หมายเหตุ: pg_cron ใช้เวลา UTC → 08:00 ไทย = `0 1 * * *`
@@ -432,8 +455,8 @@ CREATE TYPE pay_frequency   AS ENUM ('MONTHLY','QUARTERLY','SEMI_ANNUAL','ANNUAL
 CREATE TYPE lease_status    AS ENUM ('DRAFT','ACTIVE','NOTICE_GIVEN','ENDED','TERMINATED','RENEWED');
 CREATE TYPE period_kind     AS ENUM ('MOVE_IN','NIGHT','RENT','UTILITY','MOVE_OUT','ADJUSTMENT');
 CREATE TYPE period_status   AS ENUM ('UPCOMING','DUE','PARTIAL','OVERDUE','PAID','WAIVED','CANCELLED');
-CREATE TYPE vat_mode        AS ENUM ('VAT_7','EXEMPT');
-CREATE TYPE doc_type        AS ENUM ('INVOICE','RECEIPT','RECEIPT_TAX_INVOICE','CREDIT_NOTE');
+CREATE TYPE daily_billing   AS ENUM ('PER_STAY','PER_NIGHT');
+CREATE TYPE doc_type        AS ENUM ('INVOICE','RECEIPT');   -- เฟส 2 เพิ่ม TAX_INVOICE, CREDIT_NOTE
 CREATE TYPE user_role       AS ENUM ('ADMIN','MANAGER','FRONT_DESK','ACCOUNTANT');
 
 -- ===== ผู้ใช้ & ตั้งค่า =====
@@ -450,26 +473,38 @@ CREATE TABLE business_settings (           -- มีแถวเดียว
   legal_name         text NOT NULL,
   address            text NOT NULL,
   tax_id             text,
-  branch             text NOT NULL DEFAULT 'Head Office',
-  vat_registered     boolean NOT NULL DEFAULT false,
   hold_hours         int  NOT NULL DEFAULT 24,
-  line_group_id      text,
   line_push_monthly_limit int NOT NULL DEFAULT 200,
   logo_file_id       uuid
 );
 
--- ===== อาคาร & ห้อง =====
+-- ===== ที่พัก & ห้อง =====
 CREATE TABLE properties (
   id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code                 text UNIQUE NOT NULL CHECK (code ~ '^[A-Z0-9]{2,6}$'),  -- ใช้ในเลขที่เอกสาร
   name                 text NOT NULL,
+  type                 text NOT NULL DEFAULT 'APARTMENT' CHECK (type IN ('APARTMENT','HOTEL','HOUSE','CONDO','OTHER')),
+  status               text NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT','ACTIVE','ARCHIVED')),
   address              text,
+  phone                text,
+  issuer_override      jsonb,             -- ชื่อ/ที่อยู่/เลขผู้เสียภาษีบนเอกสาร ถ้าต่างจากบริษัท
+  payment_instructions text,              -- เลขบัญชีบน Invoice
+  payment_qr_file_id   uuid,
+  line_group_id        text,              -- กลุ่ม LINE ของพนักงานที่พักนี้ (ใช้กลุ่มเดียวกันได้)
   check_in_time        time NOT NULL DEFAULT '14:00',
   check_out_time       time NOT NULL DEFAULT '12:00',
   meter_reading_day    int  NOT NULL DEFAULT 25 CHECK (meter_reading_day BETWEEN 1 AND 28),
   grace_days           int  NOT NULL DEFAULT 5,
   late_fee_rule        jsonb,             -- {type:'PER_DAY'|'FLAT', amount, max_amount}
   move_out_billing     text NOT NULL DEFAULT 'FULL_PERIOD' CHECK (move_out_billing IN ('FULL_PERIOD','DAILY_PRORATE')),
-  turnover_buffer_days int  NOT NULL DEFAULT 0
+  turnover_buffer_days int  NOT NULL DEFAULT 0,
+  created_at           timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE property_staff (              -- สิทธิ์รายที่พัก (ADMIN เห็นทุกที่โดยไม่ต้องมีแถว)
+  property_id uuid REFERENCES properties(id),
+  user_id     uuid REFERENCES profiles(id),
+  PRIMARY KEY (property_id, user_id)
 );
 
 CREATE TABLE room_types (
@@ -511,7 +546,6 @@ CREATE TABLE rate_plans (
   deposit_months   numeric(4,2),
   advance_months   int,
   pay_frequency    pay_frequency,         -- YEARLY
-  vat_inclusive    boolean NOT NULL DEFAULT true,
   cancellation_policy_id uuid REFERENCES cancellation_policies(id),
   is_active        boolean NOT NULL DEFAULT true
 );
@@ -524,11 +558,9 @@ CREATE TABLE rate_overrides (
   priority     int NOT NULL DEFAULT 0
 );
 
-CREATE TABLE charge_types (              -- ประเภทรายการ + การตั้งค่า VAT
+CREATE TABLE charge_types (              -- ประเภทรายการ (เฟส 2 เพิ่มคอลัมน์ VAT ที่นี่)
   code        text PRIMARY KEY,           -- NIGHTLY, RENT, WATER, ELECTRIC, CLEANING, PARKING, FURNITURE, LATE_FEE, DEPOSIT ...
   name        text NOT NULL,
-  vat_daily   vat_mode NOT NULL DEFAULT 'VAT_7',
-  vat_long    vat_mode NOT NULL DEFAULT 'EXEMPT',
   is_revenue  boolean NOT NULL DEFAULT true   -- DEPOSIT = false
 );
 
@@ -561,7 +593,7 @@ CREATE TABLE guests (
   email           citext,
   line_id         text,
   nationality     char(2),
-  billing_name    text,           -- ชื่อบนใบกำกับ (บุคคล/บริษัท)
+  billing_name    text,           -- ชื่อบนเอกสาร (บุคคล/บริษัท)
   billing_address text,
   billing_tax_id  text,
   billing_branch  text,
@@ -576,10 +608,12 @@ CREATE TABLE guests (
 -- ===== การจอง =====
 CREATE TABLE bookings (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  code             text UNIQUE NOT NULL,          -- BK-2026-000123
+  code             text UNIQUE NOT NULL,          -- SKV-BK-2026-000123
+  property_id      uuid NOT NULL REFERENCES properties(id),  -- denormalize เพื่อ filter/RLS เร็ว
   unit_id          uuid NOT NULL REFERENCES units(id),
   kind             booking_kind NOT NULL DEFAULT 'RESERVATION',
   mode             rental_mode,
+  daily_billing    daily_billing,                 -- เฉพาะ DAILY
   status           booking_status NOT NULL,
   stay             daterange NOT NULL,            -- [check_in, check_out)
   guest_id         uuid REFERENCES guests(id),
@@ -602,6 +636,7 @@ CREATE TABLE bookings (
   updated_at       timestamptz NOT NULL DEFAULT now(),
   CHECK (lower(stay) < upper(stay)),
   CHECK (kind = 'BLOCK' OR (mode IS NOT NULL AND guest_id IS NOT NULL)),
+  CHECK ((mode = 'DAILY') = (daily_billing IS NOT NULL)),
   CONSTRAINT no_overlap EXCLUDE USING gist (unit_id WITH =, stay WITH &&)
     WHERE (status IN ('HOLD','CONFIRMED','CHECKED_IN'))
 );
@@ -668,7 +703,6 @@ CREATE TABLE charge_lines (
   quantity    numeric(12,2) NOT NULL DEFAULT 1,
   unit_price  bigint NOT NULL,
   amount      bigint NOT NULL,                    -- ติดลบ = ส่วนลด
-  vat_mode    vat_mode NOT NULL,
   meta        jsonb                               -- {meter_from, meter_to, reading_ids}
 );
 
@@ -755,18 +789,17 @@ CREATE TABLE deposit_deductions (
 CREATE TABLE documents (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   type           doc_type NOT NULL,
-  number         text UNIQUE NOT NULL,            -- RT-2026-00001
+  number         text UNIQUE NOT NULL,            -- SKV-RC-2026-00001
+  property_id    uuid NOT NULL REFERENCES properties(id),
   booking_id     uuid NOT NULL REFERENCES bookings(id),
-  payment_id     uuid REFERENCES payments(id),    -- ใบเสร็จ
-  period_ids     uuid[],                          -- ใบแจ้งหนี้
-  ref_document_id uuid REFERENCES documents(id),  -- ใบลดหนี้อ้างใบเดิม
+  payment_id     uuid REFERENCES payments(id),    -- Receipt
+  period_ids     uuid[],                          -- Invoice
+  ref_document_id uuid REFERENCES documents(id),  -- ใบที่ออกแทนใบที่ void
   issue_date     date NOT NULL,
-  seller         jsonb NOT NULL,                  -- snapshot ข้อมูลผู้ขาย
-  buyer          jsonb NOT NULL,                  -- snapshot ข้อมูลผู้ซื้อ
+  due_date       date,                            -- Invoice
+  issuer         jsonb NOT NULL,                  -- snapshot ข้อมูลผู้ออกเอกสาร
+  bill_to        jsonb NOT NULL,                  -- snapshot ข้อมูลผู้จ่าย
   lines          jsonb NOT NULL,                  -- snapshot รายการ
-  vatable_amount bigint NOT NULL DEFAULT 0,
-  vat_amount     bigint NOT NULL DEFAULT 0,
-  exempt_amount  bigint NOT NULL DEFAULT 0,
   total          bigint NOT NULL,
   pdf_file_id    uuid,
   status         text NOT NULL DEFAULT 'ISSUED' CHECK (status IN ('ISSUED','VOID')),
@@ -775,11 +808,12 @@ CREATE TABLE documents (
   created_at     timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE document_sequences (
-  prefix  text,             -- BK, INV, RT, RC, CN
-  year    int,
-  last_no int NOT NULL DEFAULT 0,
-  PRIMARY KEY (prefix, year)
+CREATE TABLE document_sequences (         -- เลขที่ต่อเนื่องแยกตามที่พัก
+  property_id uuid REFERENCES properties(id),
+  prefix      text,          -- BK, INV, RC
+  year        int,
+  last_no     int NOT NULL DEFAULT 0,
+  PRIMARY KEY (property_id, prefix, year)
 );
 
 -- ===== ระบบ =====
@@ -827,6 +861,8 @@ CREATE TABLE audit_logs (
 - เลขที่เอกสารออกด้วย `UPDATE document_sequences SET last_no = last_no + 1 WHERE ... RETURNING last_no` ใน transaction เดียวกับการสร้างเอกสาร → ไม่ซ้ำ ไม่ข้าม
 - `charge_periods.total_amount / paid_amount / status` อัปเดตด้วย trigger + job รายวัน → query สถานะเร็ว ไม่ต้อง sum ทุกครั้ง
 - RLS ตัวอย่าง: `FRONT_DESK` อ่าน/เขียน bookings, payments ได้ แต่ void เอกสารไม่ได้ · `ACCOUNTANT` เขียน documents/refunds ได้
+- **RLS รายที่พัก:** ทุกตารางที่ผูกกับที่พักตรวจ `app.can_access_property(property_id)` = ADMIN หรือมีแถวใน `property_staff`
+- ห้อง/ราคา/ค่าบริการ/อัตราค่าน้ำไฟ/มิเตอร์ ผูกกับที่พักทั้งหมด → เพิ่มที่พักใหม่ไม่กระทบที่พักเดิม
 
 ---
 
@@ -836,7 +872,7 @@ UI ใช้งานภายในบริษัทเท่านั้น �
 
 | กลุ่ม | ฟังก์ชัน |
 |---|---|
-| Inventory | `createProperty`, `updateProperty`, `createRoomType`, `createUnit`, `updateUnit`, `createBlock`, `removeBlock` |
+| Inventory | `createProperty`, `updateProperty`, `activateProperty` (ตรวจว่าตั้งค่าครบ), `archiveProperty`, `assignPropertyStaff`, `createRoomType`, `createUnit`, `bulkCreateUnits({prefix, from, to, floor})`, `updateUnit`, `createBlock`, `removeBlock` |
 | Pricing | `upsertRatePlan`, `upsertRateOverride`, `upsertFee`, `upsertUtilityRate`, `upsertChargeType`, `getQuote(input)` |
 | Availability | `searchAvailability({from,to,mode,guests,roomTypeId})`, `getCalendar({propertyId,from,to})`, `getUpcomingVacancies(days)` |
 | Booking | `createBooking`, `confirmBooking`, `updateBooking(version)`, `extendBooking`, `cancelBooking`, `checkIn`, `checkOut`, `markNoShow` |
@@ -844,8 +880,8 @@ UI ใช้งานภายในบริษัทเท่านั้น �
 | Periods & Payments | `getPeriods(bookingId)`, `getPaymentBoard({propertyId, month})`, `recordPayment`, `voidPayment`, `waivePeriod`, `addAdjustment`, `recordRefund` |
 | Meters | `getMeterSheet({propertyId,date})`, `saveMeterReadings(bulk)`, `billUtilities({propertyId,date})` |
 | Deposits | `settleDeposit({deductions[]})` |
-| Documents | `issueInvoice`, `issueReceipt(paymentId)`, `voidDocument`, `issueCreditNote`, `downloadPdf` |
-| Reports | `occupancyReport`, `revenueReport`, `arAgingReport`, `depositReport`, `salesTaxReport`, `exportCsv` |
+| Documents | `issueInvoice`, `issueReceipt(paymentId)`, `voidDocument`, `getDocumentForPrint`, `attachDocumentPdf` |
+| Reports | `occupancyReport`, `revenueReport`, `arAgingReport`, `depositReport`, `propertyComparison`, `exportCsv` (ทุกรายงานรับ `propertyId` หรือ `all`) |
 | System | `/api/cron/daily-digest`, `/api/line/webhook`, `inviteUser`, `updateUserRole` |
 
 **รหัส error สำคัญ:** `BOOKING_CONFLICT` (ห้องไม่ว่าง — จาก exclusion constraint `23P01`), `VERSION_CONFLICT`, `HOLD_EXPIRED`, `RULE_VIOLATION`, `PERIOD_ALREADY_PAID`, `DOCUMENT_LOCKED`
@@ -860,17 +896,19 @@ UI ใช้งานภายในบริษัทเท่านั้น �
 /app/api/line/webhook       รับข้อความจาก LINE (ตรวจ signature)
 /src/domain/                กฎธุรกิจล้วน (ไม่มี I/O) → unit test
     pricing/{daily,monthly,yearly,quote}.ts
-    periods.ts  utilities.ts  cancellation.ts  vat.ts
+    periods.ts  utilities.ts  cancellation.ts
     booking-state.ts  lease-state.ts  period-status.ts
 /src/server/actions/        Server Actions
 /src/server/services/       transaction + repository + audit
 /src/db/schema.ts           Drizzle schema
 /supabase/migrations/       SQL migrations (constraints, RLS, pg_cron)
-/src/lib/                   money, dates (Asia/Bangkok), supabase clients, line, pdf
+/src/lib/                   money, dates (Asia/Bangkok), supabase clients, db (Hyperdrive), line
+/workers/cron/              Cloudflare Worker สำหรับ Cron Triggers
+/wrangler.jsonc             config ของ Cloudflare (Hyperdrive binding, nodejs_compat)
 /tests/                     Vitest (domain) + integration (Supabase local)
 ```
 
-**Library:** `@supabase/ssr` · Drizzle ORM · Zod · date-fns + `@date-fns/tz` · `@line/bot-sdk` · React-PDF (รองรับฟอนต์ไทย เช่น Sarabun) · Vitest
+**Library:** `@opennextjs/cloudflare` · `@supabase/ssr` · Drizzle ORM + `postgres` · Zod · date-fns + `@date-fns/tz` · `@react-pdf/renderer` (ฝั่ง browser) · Vitest · LINE เรียก Messaging API ด้วย `fetch` โดยตรง (เบาและเข้ากับ Workers)
 
 ---
 
@@ -879,14 +917,14 @@ UI ใช้งานภายในบริษัทเท่านั้น �
 | เฟส | ขอบเขต |
 |---|---|
 | **MVP** | M1–M10 (P1), M11-01/02/03, M12 (P1), M13 |
-| **เฟส 2** | iCal sync, ส่วนลดตามระยะพัก, month-to-month, แจ้งเตือนผู้เช่าทาง LINE, housekeeping/แจ้งซ่อม, blacklist, ตม.30, ADR/RevPAR |
+| **เฟส 2** | VAT + Tax Invoice + Credit Note, iCal sync, ส่วนลดตามระยะพัก, month-to-month, คัดลอกการตั้งค่าที่พัก, แจ้งเตือนผู้เช่าทาง LINE, housekeeping/แจ้งซ่อม, blacklist, ตม.30, ADR/RevPAR |
 
 ---
 
-## 15. คำถามที่เหลือ (ยืนยันก่อนออกแบบหน้าจอ)
+## 15. ขอยืนยันก่อนออกแบบหน้าจอ
 
-1. **สถานะรายวัน:** การจองรายวันให้แยก **1 งวดต่อคืน** (เห็นสถานะจ่ายแล้ว/ยังไม่จ่ายทีละวัน) ตามที่ออกแบบไว้ใช่ไหม? หรือรายวันให้เป็น **1 งวดต่อการจอง**?
-2. **บริษัทจดทะเบียน VAT แล้วหรือยัง?** และ VAT แยกตามประเภทรายการ (หัวข้อ 7.2) ได้ยืนยันกับนักบัญชีแล้วหรือยัง?
-3. **ภาษาบนใบเสร็จ/ใบกำกับภาษี:** ใช้ **2 ภาษา TH/EN** ตามที่แนะนำ ได้ไหม?
-4. **อาคาร:** มีกี่อาคาร และประมาณกี่ห้อง? (ใช้ประเมินขนาดและวางหน้าจอจดมิเตอร์)
-5. **Hosting:** deploy Next.js บน **Vercel** ได้ไหม?
+1. **"ให้เลือกก่อนว่าเช่ารายวันหรือรายปี"** — ผมเข้าใจและออกแบบไว้ 2 อย่างพร้อมกัน ขอยืนยันว่าตรงกับที่ต้องการ:
+   - (ก) ตอนสร้างการจอง **ขั้นแรกให้พนักงานเลือกโหมด** Daily / Monthly / Yearly ก่อน แล้วฟอร์มจึงเปลี่ยนตามโหมด (M5-01)
+   - (ข) การจองรายวัน **เลือกได้ตอนจอง** ว่าจะติดตามการจ่ายทั้งการจอง (`PER_STAY`) หรือทีละคืน (`PER_NIGHT`) (หัวข้อ 5.1)
+   - และขอยืนยันว่ายังคง **รายเดือน** ไว้ด้วย (3 โหมด) ใช่ไหม?
+2. ถ้ายืนยันข้อ 1 แล้ว ถือว่า **approve เอกสารนี้** และเริ่มออกแบบหน้าจอได้เลยไหม?
