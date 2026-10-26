@@ -71,7 +71,7 @@
 
 | ID | หน้าจอ | URL | ฟังก์ชัน |
 |---|---|---|---|
-| S00 | Login / Forgot password / Accept invite | `/login`, `/forgot`, `/invite/[token]` | M1-01 |
+| S00 | Sign in with Google | `/login`, `/auth/callback` | M1-01 |
 | S01 | Dashboard | `/` | M11-01 |
 | S02 | Calendar (Tape chart) | `/calendar` | M4-01, M4-02, M2-04 |
 | S03 | Bookings list | `/bookings` | M5 |
@@ -86,7 +86,7 @@
 | S12 | Guests | `/guests`, `/guests/[id]` | M10 |
 | S13 | Reports | `/reports/[type]` | M12 |
 | S14 | Properties + Setup wizard | `/settings/properties`, `/settings/properties/new`, `/settings/properties/[code]` | M2, M3 |
-| S15 | Users | `/settings/users` | M1-02, M1-03, M1-05 |
+| S15 | Team | `/settings/team` | M1-02, M1-03, M1-05, M1-06 |
 | S16 | Business & Policies | `/settings/business`, `/settings/policies` | M1-04, M5-10 |
 | S17 | Notifications (LINE) | `/settings/notifications` | M11-03 |
 | S18 | Activity log | `/settings/activity` | M13-01 |
@@ -100,13 +100,14 @@
 ```
 ┌──────────────────────────────┐
 │          Pre-Booking         │
-│  Email     [______________]  │
-│  Password  [______________]  │
-│            [   Sign in    ]  │
-│  Forgot password?            │
+│  Sign in to your team        │
+│  [ G  Continue with Google ] │
+│  Only team members can sign  │
+│  in. Ask your admin to add   │
+│  your Google account.        │
 └──────────────────────────────┘
 ```
-- Accept invite: ตั้งชื่อ + รหัสผ่าน · บัญชีที่ถูกปิดใช้งานจะ login ไม่ได้
+- ไม่มีรหัสผ่าน · อีเมลที่ไม่อยู่ในทีมหรือถูกปิดใช้งาน → แสดงข้อความพร้อมอีเมลที่ใช้ และปุ่ม "Use another account"
 
 ---
 
@@ -442,10 +443,16 @@ Progress: 32 / 50 recorded
 
 **Property settings** (`/settings/properties/[code]`) — แท็บเดียวกับขั้นของ wizard: General · Room types · Units · Rates · Fees · Utilities · Staff · + `Archive property`
 
-### S15 — Users (Admin)
+### S15 — Team (Admin)
 
-- ตาราง: Name, Email, Role, Properties, Status, Last sign-in · `[Invite user]`
-- Invite: Email, Name, Role, Properties (หลายที่ได้) · Deactivate / Change role
+- ตาราง: Name (จาก Google), Google email, Role, Properties, Status (`Active` · `Not signed in yet` · `Deactivated`), Last active · `[Add member]`
+- Add member: Google email, Role, Properties (หลายที่ได้) → login ได้ทันที · Deactivate (ตัด session ทันที) / Change role
+- แสดงจุดเขียวข้างชื่อคนที่ออนไลน์อยู่ตอนนี้
+
+### ทุกหน้า — ใช้งานพร้อมกัน (M1-06)
+- ข้อมูลรีเฟรชเองเมื่อคนอื่นแก้ ไม่ต้องกดโหลดใหม่
+- หน้าการจองแสดง avatar ของคนที่เปิดอยู่พร้อมกัน เช่น "Pim is also viewing"
+- ถ้าบันทึกชนกัน: แถบแจ้ง "Updated by Pim a moment ago" + ปุ่ม Review changes
 
 ### S16 — Business & Policies
 

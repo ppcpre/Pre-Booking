@@ -1,4 +1,4 @@
-# Pre-Booking — Functional Design (v1.2, Approved)
+# Pre-Booking — Functional Design (v1.3, Approved)
 
 ระบบให้ **พนักงานของบริษัท** จัดการที่พัก (เพิ่มได้หลายแห่ง) และบันทึกการจอง รองรับการเช่า **2 โหมด**: **รายวัน (Daily)** และ **รายปี (Yearly)**
 
@@ -10,6 +10,13 @@
 | แจ้งเตือน | LINE Official Account (Messaging API, free plan) + แจ้งเตือนในแอป |
 
 > เอกสารนี้เป็นการออกแบบ **ฟังก์ชัน ข้อมูล และกฎทางธุรกิจ** เท่านั้น หน้าจอจะออกแบบหลังจากเอกสารนี้ได้รับการ approve
+
+### สิ่งที่เปลี่ยนใน v1.3
+
+| # | ความต้องการ | ผลต่อการออกแบบ |
+|---|---|---|
+| 1 | **เข้าระบบด้วย Gmail** | Login ด้วย **Google (Sign in with Google)** ผ่าน Supabase Auth อย่างเดียว ไม่มีรหัสผ่านให้จำ · เข้าได้เฉพาะอีเมลที่ Admin เพิ่มไว้ในรายชื่อทีม (allowlist) |
+| 2 | **ใช้งานพร้อมกันหลายคน** | ไม่จำกัดจำนวนผู้ใช้/อุปกรณ์ · ข้อมูลอัปเดตแบบ real-time (Supabase Realtime) บนปฏิทิน รายการจอง และหน้ารับเงิน · แสดงว่าใครกำลังเปิดการจองเดียวกันอยู่ · กันการบันทึกทับกันด้วย version check (มีอยู่แล้ว) |
 
 ### สิ่งที่เปลี่ยนใน v1.2
 
@@ -120,8 +127,9 @@ Property (ที่พัก — เพิ่มได้หลายแห่�
 
 | ID | ฟังก์ชัน | รายละเอียด | P |
 |---|---|---|---|
-| M1-01 | Login | Supabase Auth (email + password), ลืมรหัสผ่าน | 1 |
-| M1-02 | จัดการพนักงาน | Admin เชิญพนักงานทางอีเมล, ปิดการใช้งานบัญชี | 1 |
+| M1-01 | Login ด้วย Google | ปุ่ม "Continue with Google" (Gmail หรือ Google Workspace) · ไม่มี email/password · เข้าได้เฉพาะอีเมลที่อยู่ในรายชื่อทีม; อีเมลอื่นเห็นข้อความ "This Google account isn't on the team. Ask your admin to add it." · session หมดอายุตามค่าตั้ง (ค่าเริ่มต้น 7 วัน) | 1 |
+| M1-02 | จัดการทีม | Admin เพิ่มอีเมล Google + บทบาท + ที่พัก → ผู้นั้น login ได้ทันที (ส่งอีเมลแจ้งเป็นตัวเลือก) · ปิดการใช้งาน = ตัด session ที่ค้างอยู่ทันที · Admin คนแรกตั้งจากตัวแปร `BOOTSTRAP_ADMIN_EMAIL` ตอน deploy | 1 |
+| M1-06 | ใช้งานพร้อมกันหลายคน | ข้อมูลบนจอรีเฟรชเองเมื่อคนอื่นแก้ (Realtime) · แสดงชื่อคนที่เปิดการจองเดียวกันอยู่ (presence) · ถ้าแก้ชนกัน แจ้ง "Updated by Pim a moment ago — review changes" | 1 |
 | M1-03 | บทบาท | `ADMIN` (ทุกอย่าง + ตั้งค่า), `MANAGER` (ทุกอย่างยกเว้นจัดการผู้ใช้), `FRONT_DESK` (จอง/เช็กอิน/รับเงิน/จดมิเตอร์), `ACCOUNTANT` (การเงิน/เอกสาร/รายงาน, ดูการจองได้) | 1 |
 | M1-04 | ตั้งค่าธุรกิจ | ชื่อ, ที่อยู่, เลขผู้เสียภาษี (แสดงบนเอกสาร ถ้ามี), โลโก้ | 1 |
 | M1-05 | สิทธิ์รายที่พัก | ADMIN เห็นทุกที่พัก · บทบาทอื่นเห็นเฉพาะที่พักที่ได้รับมอบหมาย | 1 |
@@ -417,7 +425,8 @@ total    = subtotal + fees   (MVP ไม่คิด VAT)
 | ส่วน | การใช้งาน |
 |---|---|
 | **Database** | Postgres + extensions `btree_gist`, `citext`, `pgcrypto`, `pg_cron` · migration ด้วย Supabase CLI (`supabase/migrations/*.sql`) |
-| **Auth** | Email/password, admin เชิญพนักงาน (`auth.admin.inviteUserByEmail`), ตาราง `profiles` (role) ผูกกับ `auth.users` |
+| **Auth** | **Google OAuth อย่างเดียว** (ปิด email/password) · PKCE flow ผ่าน `@supabase/ssr` → route `/auth/callback` · ตรวจ allowlist ด้วย **Auth Hook "Before User Created"** (ปฏิเสธอีเมลที่ไม่อยู่ใน `team_members`) และตรวจซ้ำใน middleware ทุก request (`is_active`) · ตาราง `profiles` ผูกกับ `auth.users` |
+| **Realtime** | Supabase Realtime: subscribe การเปลี่ยนแปลง `bookings`, `charge_periods`, `payments` ของที่พักที่เปิดอยู่ (ผ่าน RLS) · Presence channel ต่อการจองเพื่อแสดงคนที่กำลังเปิดดู |
 | **RLS** | เปิดทุกตาราง · policy ตาม role ผ่านฟังก์ชัน `app.current_role()` · ฝั่ง client อ่านได้เฉพาะที่จำเป็น การเขียนทั้งหมดผ่าน server |
 | **Data access ฝั่ง server** | **Drizzle ORM** + `postgres` (postgres.js) ต่อผ่าน **Cloudflare Hyperdrive** → Supabase (direct connection) สำหรับ business logic ที่ต้องใช้ transaction · ใช้ `@supabase/ssr` สำหรับ session/auth |
 | **Storage** | Private buckets: `slips`, `id-documents`, `contracts`, `documents` (PDF), `meter-photos` · เข้าถึงผ่าน signed URL อายุสั้น |
@@ -475,9 +484,22 @@ CREATE TYPE doc_type        AS ENUM ('INVOICE','RECEIPT');   -- เฟส 2 เ�
 CREATE TYPE user_role       AS ENUM ('ADMIN','MANAGER','FRONT_DESK','ACCOUNTANT');
 
 -- ===== ผู้ใช้ & ตั้งค่า =====
-CREATE TABLE profiles (
+CREATE TABLE team_members (               -- allowlist: ใครเข้าระบบได้ (สร้างก่อนเขา login ครั้งแรก)
+  email        citext PRIMARY KEY,          -- อีเมล Google
+  full_name    text,
+  role         user_role NOT NULL DEFAULT 'FRONT_DESK',
+  is_active    boolean NOT NULL DEFAULT true,
+  added_by     uuid,
+  added_at     timestamptz NOT NULL DEFAULT now(),
+  user_id      uuid UNIQUE REFERENCES auth.users(id),  -- เติมเมื่อ login ครั้งแรก
+  last_sign_in timestamptz
+);
+
+CREATE TABLE profiles (                    -- สร้างอัตโนมัติจาก team_members ตอน login ครั้งแรก
   id         uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  full_name  text NOT NULL,
+  email      citext UNIQUE NOT NULL REFERENCES team_members(email),
+  full_name  text NOT NULL,                -- ดึงจาก Google profile
+  avatar_url text,
   role       user_role NOT NULL DEFAULT 'FRONT_DESK',
   is_active  boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now()
@@ -893,7 +915,7 @@ UI ใช้งานภายในบริษัทเท่านั้น �
 | Deposits | `settleDeposit({deductions[]})` |
 | Documents | `issueInvoice`, `issueReceipt(paymentId)`, `voidDocument`, `getDocumentForPrint`, `attachDocumentPdf` |
 | Reports | `occupancyReport`, `revenueReport`, `arAgingReport`, `depositReport`, `propertyComparison`, `exportCsv` (ทุกรายงานรับ `propertyId` หรือ `all`) |
-| System | `/api/cron/daily-digest`, `/api/line/webhook`, `inviteUser`, `updateUserRole` |
+| System | `/api/cron/daily-digest`, `/api/line/webhook`, `addTeamMember(email, role, propertyIds)`, `updateTeamMember`, `deactivateTeamMember` (ตัด session) |
 
 **รหัส error สำคัญ:** `BOOKING_CONFLICT` (ห้องไม่ว่าง — จาก exclusion constraint `23P01`), `VERSION_CONFLICT`, `HOLD_EXPIRED`, `RULE_VIOLATION`, `PERIOD_ALREADY_PAID`, `DOCUMENT_LOCKED`
 
