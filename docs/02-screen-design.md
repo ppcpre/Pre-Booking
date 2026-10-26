@@ -1,9 +1,10 @@
-# Pre-Booking — Screen Design (v0.1, รอ approve)
+# Pre-Booking — Screen Design (v0.2, Approved — wireframe)
 
 อ้างอิง: `docs/01-functional-design.md` (v1.0 Approved) · รหัสฟังก์ชัน (M5-01 ฯลฯ) อ้างตามเอกสารนั้น
 
 - **ภาษา UI:** English ทั้งหมด (ข้อความในเอกสารนี้อธิบายเป็นภาษาไทย ส่วน label บนหน้าจอเป็นภาษาอังกฤษ)
-- **โหมด:** `Daily` และ `Yearly`
+- **โหมด:** `Daily` (จ่ายเต็มก่อนเข้าพัก) และ `Yearly` (จ่ายรายเดือน)
+- **Wireframe แบบภาพ:** `docs/wireframes/index.html`
 - **ผู้ใช้:** พนักงานบริษัทเท่านั้น (Admin / Manager / Front desk / Accountant)
 - **อุปกรณ์:** ออกแบบสำหรับ Desktop/Laptop เป็นหลัก · Tablet ใช้ได้ทุกหน้า · **หน้าจดมิเตอร์และ Check-in/out ใช้บนมือถือได้ดี**
 
@@ -189,7 +190,7 @@ Bookings                                                          [ + New bookin
 |---|---|
 | Check-in, Check-out (date range) → แสดง `3 nights` | Move-in date, Term `[1] year(s)` → แสดง move-out date |
 | Adults, Children | Adults, Children |
-| Room type (optional) | Room type (optional), Payment frequency `[Monthly ▾]` |
+| Room type (optional) | Room type (optional) · แสดง "Paid monthly" |
 
 **Step 3 — Select unit**
 ```
@@ -211,9 +212,9 @@ Not available (2) ▸   ← พับไว้ แสดงเหตุผล: b
 **Step 5 — Review & confirm**
 ```
 ┌─ Price breakdown ─────────────────────────┐  ┌─ Payment schedule preview ───────────┐
-│ Daily · Unit 101 · 26–29 Oct (3 nights)   │  │ Billing:  (•) Per stay  ( ) Per night │ ← Daily
-│  Mon 26 Oct          ฿1,400               │  │ #0 Booking deposit  ฿1,000  26 Oct   │
-│  Tue 27 Oct          ฿1,400               │  │ #1 Stay 26–29 Oct   ฿3,500  26 Oct   │
+│ Daily · Unit 101 · 26–29 Oct (3 nights)   │  │ Pay in full before check-in          │ ← Daily
+│  Mon 26 Oct          ฿1,400               │  │ #1 Stay 26–29 Oct   ฿4,800           │
+│  Tue 27 Oct          ฿1,400               │  │ Pay by 26 Oct 00:00 (or room released)│
 │  Wed 28 Oct          ฿1,700 (weekend)     │  └──────────────────────────────────────┘
 │  Cleaning fee          ฿300               │
 │  [+ Add fee]  [Adjust price…]             │   Yearly ตัวอย่าง:
@@ -222,11 +223,11 @@ Not available (2) ▸   ← พับไว้ แสดงเหตุผล: b
 └───────────────────────────────────────────┘   #2 Rent 26 Nov–26 Dec  ฿15,000   26 Nov
 Source: [Walk-in ▾]  Note: [__________]          … (12 rows, scrollable)
 
-[ Save as Hold (expires in 24h) ]   [ Confirm booking ]
+[ Save booking (Hold until paid) ]   [ Save & record payment ]
 ```
 - `Adjust price…` (M3-10): แก้ราคา/ส่วนลด + เหตุผล (บังคับ) · Front desk ปรับได้ไม่เกินเพดานที่ตั้งไว้
-- Daily: ระบบเลือก `Per night` ให้อัตโนมัติเมื่อพัก ≥ 7 คืน (เปลี่ยนได้)
-- Yearly: ตัวเลือก Advance months, Deposit months (ค่าเริ่มต้นจาก rate plan) · หลัง Confirm → ไปสร้างสัญญาที่แท็บ Lease
+- การจองทุกโหมดบันทึกเป็น `Hold` ก่อน → ระบบเปลี่ยนเป็น `Confirmed` อัตโนมัติเมื่อ: **Daily** จ่ายครบ · **Yearly** จ่ายงวดแรกเข้า (เงินประกัน + ค่าเช่าล่วงหน้า) ครบ
+- Yearly: ตัวเลือก Advance months, Deposit months (ค่าเริ่มต้นจาก rate plan) · หลังยืนยัน → ไปสร้างสัญญาที่แท็บ Lease
 - กรณีห้องถูกจองตัดหน้า (error `BOOKING_CONFLICT`) → แจ้ง "This unit was just booked" และกลับไป Step 3
 
 ---
@@ -332,7 +333,7 @@ Payment board    Mode: [Yearly ▾]   Year: [2026 ▾]   Status: [All ▾]
  202 Lee │ 🟢  │ 🟢  │ 🟢  │ 🟢  │ 🟢  │ 🟢  │ 🟢  │ 🟢  │ 🟢  │ 🔵  │ ⚪  │ ⚪  │
 ```
 - **Yearly:** ห้อง × เดือน (ช่องตามวันครบกำหนดของงวด)
-- **Daily:** สลับ Mode = Daily → ห้อง × วัน ในเดือนที่เลือก (การจอง `Per stay` ระบายทั้งช่วงด้วยสีเดียว, `Per night` ระบายทีละวัน)
+- **Daily:** สลับ Mode = Daily → ห้อง × วัน ในเดือนที่เลือก · แต่ละการจองเป็นแถบเดียวสีตามสถานะการจ่าย (Paid = เขียว · Unpaid/Partial ก่อนเข้าพัก = เหลือง)
 - คลิกช่อง → popover: งวด, ยอด, จ่ายแล้ว, วันที่จ่าย + ปุ่ม `Record payment` / `Open booking`
 - แถวสรุปด้านล่าง: ยอดเรียกเก็บ / ยอดรับ / ยอดค้าง ต่อคอลัมน์
 
@@ -434,7 +435,7 @@ Progress: 32 / 50 recorded
 | ① Details | Name*, Code* (2–6 ตัว A-Z/0-9), Type, Address, Phone, Check-in/out time, Meter reading day, Grace days, Late fee, Payment instructions + QR image, Document issuer (ใช้ข้อมูลบริษัท / กำหนดเอง) |
 | ② Room types | Name, Max occupancy, Size, Amenities, Photos (เพิ่มได้หลายแบบ) |
 | ③ Units | **Bulk add:** Prefix/From–To (เช่น 101–120), Floor, Room type, Modes `☑ Daily ☑ Yearly` · แก้รายห้องในตารางได้ |
-| ④ Rates | ต่อประเภทห้อง: **Daily** (base, weekend, min/max nights, cancellation policy) · **Yearly** (rent/month, deposit months, advance months, payment frequency, annual prepay discount) · Seasonal overrides (ทำทีหลังได้) · Fees |
+| ④ Rates | ต่อประเภทห้อง: **Daily** (base, weekend, min/max nights, cancellation policy) · **Yearly** (rent/month, deposit months, advance months) · Seasonal overrides (ทำทีหลังได้) · Fees |
 | ⑤ Utilities | Water/Electric: price per unit, minimum charge · เลขมิเตอร์เริ่มต้นรายห้อง (ข้ามได้ถ้าไม่มี Yearly) |
 | ⑥ Staff | เลือกพนักงานที่เข้าถึงที่พักนี้ |
 | ✓ Activate | Checklist ความครบถ้วน (ทุกห้องมี rate ของโหมดที่เปิด ฯลฯ) → `Activate property` |
@@ -465,11 +466,11 @@ Progress: 32 / 50 recorded
 
 ## 5. Flow หลัก
 
-**Daily — walk-in**
-`+ New booking` → Daily → วันที่ → เลือกห้อง → ผู้เข้าพัก → Confirm → `Record payment` → Receipt → `Check in`
+**Daily — จองล่วงหน้า / walk-in**
+`+ New booking` → Daily → วันที่ → เลือกห้อง → ผู้เข้าพัก → Save (Hold) → `Record payment` เต็มจำนวน → Confirmed อัตโนมัติ + Receipt → วันเข้าพัก `Check in` (ปุ่มกดไม่ได้ถ้ายังมียอดค้าง)
 
 **Yearly — ผู้เช่าใหม่**
-`+ New booking` → Yearly → วันเข้า + 1 ปี → เลือกห้อง → ผู้เช่า (บริษัท) → Save as Hold → รับเงินประกัน + ค่าเช่าล่วงหน้า (Record payment) → Confirm → Lease tab: Generate contract → Upload signed → `Check in` (จดมิเตอร์ตอนเข้า)
+`+ New booking` → Yearly → วันเข้า + 1 ปี → เลือกห้อง → ผู้เช่า (บริษัท) → Save (Hold) → รับเงินประกัน + ค่าเช่าล่วงหน้า (Record payment) → Confirmed อัตโนมัติ → Lease tab: Generate contract → Upload signed → `Check in` (จดมิเตอร์ตอนเข้า)
 
 **รายเดือนของผู้เช่ารายปี**
 วันที่ 25: S10 จดมิเตอร์ทั้งตึก → `Save & bill utilities` → งวดถัดไปมีค่าน้ำ/ไฟ → (ตัวเลือก) Issue invoice → ผู้เช่าโอน → S05/S07 `Record payment` → Receipt
@@ -518,8 +519,6 @@ Progress: 32 / 50 recorded
 
 ---
 
-## 9. ขอ feedback ก่อนเริ่มพัฒนา
+## 9. สถานะ
 
-1. ลำดับเมนูและการจัดกลุ่มหน้าจอโอเคไหม?
-2. Payment board (S07) แบบตาราง ห้อง × เดือน / ห้อง × วัน ตรงกับที่ต้องการดู "สถานะแต่ละวัน/เดือน" ไหม?
-3. ต้องการ **prototype ที่คลิกได้** (HTML) เพื่อดูหน้าตาจริงก่อน หรือเริ่มเขียนโค้ดตามลำดับ Sprint เลย?
+โครงหน้าจอ Approved · ขอบเขตรอบนี้: **wireframe เท่านั้น** (`docs/wireframes/index.html`)
