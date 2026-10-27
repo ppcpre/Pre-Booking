@@ -50,10 +50,13 @@ function useMenu() {
   return { open, setOpen, toggle, root };
 }
 
+const WORK = [
+  { label: "Today", icon: HomeIcon, path: "" },
+  { label: "Calendar", icon: CalendarIcon, path: "/calendar" },
+  { label: "Bookings", icon: ListIcon, path: "/bookings" },
+  { label: "Payments", icon: CardIcon, path: "/payments" },
+];
 const SOON = [
-  { label: "Calendar", icon: CalendarIcon },
-  { label: "Bookings", icon: ListIcon },
-  { label: "Payments", icon: CardIcon },
   { label: "Meters", icon: BoltIcon },
   { label: "Documents", icon: DocIcon },
 ];
@@ -83,7 +86,14 @@ export function Shell({ member, properties, children }: Props) {
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
             </Link>
           ))}
-          <div className="nav-h">Daily work</div>
+          <div className="nav-h">{focused ? focused.name : "Daily work"}</div>
+          {WORK.map(({ label, icon: I, path: sub }) => {
+            const target = focused ?? (properties.length === 1 ? properties[0] : null);
+            if (!target) return <span key={label} className="soon" title="Choose a property first"><I />{label}</span>;
+            const href = `/p/${target.code}${sub}`;
+            const current = sub === "" ? path === href : path.startsWith(href);
+            return <Link key={label} href={href} aria-current={current ? "page" : undefined}><I />{label}</Link>;
+          })}
           {SOON.map(({ label, icon: I }) => (
             <span key={label} className="soon" title="Arrives in the next sprint"><I />{label}<em>Soon</em></span>
           ))}
@@ -161,12 +171,17 @@ export function Shell({ member, properties, children }: Props) {
       <nav className="tabbar" aria-label="Main">
         <Link href="/" aria-current={here("/")}><HomeIcon />Home</Link>
         {focused && (
-          <Link href={`/p/${focused.code}`} aria-current={path.startsWith("/p/") ? "page" : undefined}><BuildingIcon />{focused.code}</Link>
+          <>
+            <Link href={`/p/${focused.code}/calendar`} aria-current={path.startsWith(`/p/${focused.code}/calendar`) ? "page" : undefined}><CalendarIcon />Calendar</Link>
+            <Link href={`/p/${focused.code}/bookings`} aria-current={path.startsWith(`/p/${focused.code}/bookings`) ? "page" : undefined}><ListIcon />Bookings</Link>
+            <Link href={`/p/${focused.code}/payments`} aria-current={path.startsWith(`/p/${focused.code}/payments`) ? "page" : undefined}><CardIcon />Payments</Link>
+          </>
         )}
-        {canManage && (
+        {/* Outside a property, phones get the settings shortcuts instead (four tabs at most). */}
+        {!focused && canManage && (
           <Link href="/settings/properties" aria-current={path.startsWith("/settings/properties") ? "page" : undefined}><GearIcon />Properties</Link>
         )}
-        {isAdmin && <Link href="/settings/team" aria-current={here("/settings/team")}><UsersIcon />Team</Link>}
+        {!focused && isAdmin && <Link href="/settings/team" aria-current={here("/settings/team")}><UsersIcon />Team</Link>}
       </nav>
     </div>
   );

@@ -1,37 +1,47 @@
 import Link from "next/link";
 import { PropertyThumb } from "@/components/property-thumb";
+import { BookingStatusPill, ModeTag, PeriodStatusPill } from "@/components/status";
 import { requireMember, canManageProperties } from "@/lib/session";
 import { listProperties } from "@/lib/properties";
 import { signedPhotoUrls } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/server";
+import { bookingLabels, todayView } from "@/lib/bookings";
 import { greeting, todayLabel } from "@/lib/greeting";
-import { PROPERTY_TYPE_LABEL, type RentalMode } from "@/lib/types";
+import { formatTHB } from "@/lib/money";
+import { fmtDateTime, todayISO } from "@/lib/dates";
+import { PROPERTY_TYPE_LABEL } from "@/lib/types";
 
 export const metadata = { title: "Overview" };
+
+const short = (satang: number) => (satang >= 100_000_00 ? `฿${Math.round(satang / 100_000)}k` : formatTHB(satang));
 
 export default async function Overview() {
   const member = await requireMember();
   const props = (await listProperties()).filter((p) => p.status !== "ARCHIVED");
-  const urls = await signedPhotoUrls(props.map((p) => p.photo_path));
+  const ids = props.map((p) => p.id);
+  const today = todayISO();
   const supabase = await createClient();
-  const { data: unitRows } = await supabase.from("units").select("property_id, allowed_modes, status");
-  const { count: teamCount } = await supabase.from("team_members").select("*", { count: "exact", head: true }).eq("is_active", true);
-
-  const byProp = new Map<string, { daily: number; yearly: number; both: number; maintenance: number }>();
-  for (const u of unitRows ?? []) {
-    const s = byProp.get(u.property_id) ?? { daily: 0, yearly: 0, both: 0, maintenance: 0 };
-    const modes = u.allowed_modes as RentalMode[];
-    if (modes.length === 2) s.both++;
-    else if (modes[0] === "DAILY") s.daily++;
-    else s.yearly++;
-    if (u.status === "MAINTENANCE") s.maintenance++;
-    byProp.set(u.property_id, s);
-  }
-  const open = props.filter((p) => p.status === "ACTIVE");
-  const drafts = props.filter((p) => p.status === "DRAFT");
-  const totalUnits = props.reduce((n, p) => n + p.unit_count, 0);
+  const [urls, view, tonight] = await Promise.all([
+    signedPhotoUrls(props.map((p) => p.photo_path)),
+    todayView(ids, today),
+    ids.length
+      ? supabase.from("bookings").select("property_id").in("property_id", ids).eq("kind", "RESERVATION")
+          .in("status", ["HOLD", "CONFIRMED", "CHECKED_IN"]).lte("check_in", today).gt("check_out", today)
+      : Promise.resolve({ data: [] as { property_id: string }[] }),
+  ]);
+  const labels = await bookingLabels([...new Set(view.due.map((d) => d.booking_id))]);
+  const byId = new Map(props.map((p) => [p.id, p]));
+  const count = <T extends { property_id: string }>(rows: T[], pid: string) => rows.filter((r) => r.property_id === pid).length;
+  const occupied = (tonight.data ?? []) as { property_id: string }[];
+  const overdue = view.due.filter((d) => d.status === "OVERDUE");
+  const openUnits = props.filter((p) => p.status === "ACTIVE").reduce((n, p) => n + p.unit_count, 0);
+  const unpaidArrivals = view.arrivals.filter((a) => a.status === "HOLD");
   const canManage = canManageProperties(member.role);
   const firstName = member.name.split(" ")[0];
+  const thumb = (pid: string) => {
+    const p = byId.get(pid);
+    return p ? <PropertyThumb name={p.name} url={p.photo_path ? urls[p.photo_path] : null} /> : null;
+  };
 
   return (
     <div className="page">
@@ -42,11 +52,12 @@ export default async function Overview() {
         </div>
       </div>
 
-      <div className="kcards">
-        <div className="kcard mint"><span className="n">{open.length}</span><span className="l">Open properties</span><span className="h">taking bookings</span></div>
-        <div className="kcard"><span className="n">{totalUnits}</span><span className="l">Units</span><span className="h">across {props.length} {props.length === 1 ? "property" : "properties"}</span></div>
-        <div className={`kcard ${drafts.length ? "warn" : ""}`}><span className="n">{drafts.length}</span><span className="l">Drafts to finish</span><span className="h">{drafts.length ? "finish setup to open" : "nothing pending"}</span></div>
-        <div className="kcard"><span className="n">{teamCount ?? "–"}</span><span className="l">Team members</span><span className="h">sign in with Google</span></div>
+      <div className="kcards" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+        <div className="kcard mint"><span className="n">{view.arrivals.length}</span><span className="l">Arrivals today</span><span className="h">{unpaidArrivals.length ? `${unpaidArrivals.length} still to pay` : "all paid"}</span></div>
+        <div className="kcard"><span className="n">{view.departures.length}</span><span className="l">Departures today</span><span className="h">{view.inHouse} in house now</span></div>
+        <div className="kcard"><span className="n">{occupied.length}<small> / {openUnits}</small></span><span className="l">Occupied tonight</span><span className="h">{openUnits ? `${Math.round((occupied.length / openUnits) * 100)}% of open units` : "no open units yet"}</span></div>
+        <div className={`kcard ${view.reserved.length ? "warn" : ""}`}><span className="n">{view.reserved.length}</span><span className="l">Reserved, not paid</span><span className="h">{view.reserved[0]?.hold_expires_at ? `next due ${fmtDateTime(view.reserved[0].hold_expires_at)}` : "none waiting"}</span></div>
+        <div className={`kcard ${overdue.length ? "bad" : ""}`}><span className="n">{formatTHB(overdue.reduce((n, d) => n + d.balance, 0))}</span><span className="l">Overdue</span><span className="h">{overdue.length} period{overdue.length === 1 ? "" : "s"}</span></div>
       </div>
 
       <div className="block">
@@ -56,9 +67,10 @@ export default async function Overview() {
         ) : (
           <div className="pgrid">
             {props.map((p) => {
-              const s = byProp.get(p.id) ?? { daily: 0, yearly: 0, both: 0, maintenance: 0 };
-              const n = Math.max(p.unit_count, 1);
               const draft = p.status === "DRAFT";
+              const occ = count(occupied, p.id);
+              const pct = p.unit_count ? Math.round((occ / p.unit_count) * 100) : 0;
+              const late = overdue.filter((d) => d.property_id === p.id).reduce((n, d) => n + d.balance, 0);
               return (
                 <Link key={p.id} href={draft && canManage ? `/settings/properties/${p.code}/details` : `/p/${p.code}`} className={`pcard ${draft ? "draft" : ""}`}>
                   <div className="top">
@@ -69,20 +81,24 @@ export default async function Overview() {
                     </div>
                     <span className="go">›</span>
                   </div>
-                  <div style={{ display: "grid", gap: 6 }}>
-                    <div className="bar2" aria-hidden="true">
-                      <i style={{ width: `${((s.yearly + s.both) / n) * 100}%` }} />
-                      <i className="d" style={{ width: `${(s.daily / n) * 100}%` }} />
-                    </div>
-                    <span className="hint">
-                      {p.unit_count === 0 ? "No units yet" : `${s.daily + s.both} open for daily · ${s.yearly + s.both} open for yearly`}
-                    </span>
-                  </div>
-                  <div className="pstats">
-                    <div><b>{p.unit_count}</b><small>Units</small></div>
-                    <div><b>{s.maintenance}</b><small>Maintenance</small></div>
-                    <div><b className="code" style={{ fontSize: 14 }}>{p.code}</b><small>Code</small></div>
-                  </div>
+                  {draft ? (
+                    <span className="hint">Finish setup to start taking bookings.</span>
+                  ) : (
+                    <>
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "var(--ink-2)" }}>
+                          <span>Occupied tonight</span><b style={{ color: "var(--ink)" }}>{occ} / {p.unit_count} · {pct}%</b>
+                        </div>
+                        <div className="bar2" aria-hidden="true"><i style={{ width: `${pct}%` }} /></div>
+                      </div>
+                      <div className="pstats" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+                        <div><b>{count(view.arrivals, p.id)}</b><small>Arrivals</small></div>
+                        <div><b>{count(view.departures, p.id)}</b><small>Departures</small></div>
+                        <div><b style={{ color: count(view.reserved, p.id) ? "var(--amber)" : undefined }}>{count(view.reserved, p.id)}</b><small>Unpaid</small></div>
+                        <div><b style={{ color: late ? "var(--coral)" : undefined }}>{late ? short(late) : "–"}</b><small>Overdue</small></div>
+                      </div>
+                    </>
+                  )}
                 </Link>
               );
             })}
@@ -97,7 +113,52 @@ export default async function Overview() {
         )}
       </div>
 
-      <p className="hint">Arrivals, payments and overdue rent will appear here once bookings are added in the next sprint.</p>
+      {(view.due.length > 0 || unpaidArrivals.length > 0 || view.arrivals.length > 0) && (
+        <div className="split wide">
+          <div className="card">
+            <h2>Needs attention <span>all properties</span></h2>
+            {unpaidArrivals.length === 0 && view.due.length === 0 ? <span className="hint">Nothing needs attention.</span> : (
+              <div className="list">
+                {unpaidArrivals.map((b) => {
+                  const p = byId.get(b.property_id);
+                  return (
+                    <Link key={b.id} className="it" href={`/p/${p?.code}/bookings/${b.code}?pay=1`}>
+                      <span style={{ display: "flex", gap: 6, alignItems: "center" }}>{thumb(b.property_id)}<span className="unit">{b.unit?.code}</span></span>
+                      <span style={{ minWidth: 0 }}><b>{b.guest?.full_name} arrives today</b><small>{p?.name} · {formatTHB(b.total_amount - b.paid_amount)} to pay before check-in</small></span>
+                      <span className="btn sm">Take payment</span>
+                    </Link>
+                  );
+                })}
+                {view.due.slice(0, 12).map((d) => {
+                  const p = byId.get(d.property_id);
+                  const l = labels.get(d.booking_id);
+                  return (
+                    <Link key={d.id} className="it" href={`/p/${p?.code}/bookings/${d.booking_code}`}>
+                      <span style={{ display: "flex", gap: 6, alignItems: "center" }}>{thumb(d.property_id)}<span className="unit">{l?.unit}</span></span>
+                      <span style={{ minWidth: 0 }}><b>{l?.guest} · {formatTHB(d.balance)}</b><small>{p?.name} · {d.seq === 0 ? "Deposit and move-in" : d.label}</small></span>
+                      <PeriodStatusPill status={d.status} daysLate={d.days_late} />
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="card">
+            <h2>Arriving today <span>{view.arrivals.length}</span></h2>
+            {view.arrivals.length === 0 ? <span className="hint">No arrivals today.</span> : (
+              <div className="list">
+                {view.arrivals.map((b) => (
+                  <Link key={b.id} className="it" href={`/p/${byId.get(b.property_id)?.code}/bookings/${b.code}`}>
+                    <span style={{ display: "flex", gap: 6, alignItems: "center" }}>{thumb(b.property_id)}<span className="unit">{b.unit?.code}</span></span>
+                    <span style={{ minWidth: 0 }}><b>{b.guest?.full_name}</b><small><ModeTag mode={b.mode} /> {byId.get(b.property_id)?.name}</small></span>
+                    <BookingStatusPill status={b.status} />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

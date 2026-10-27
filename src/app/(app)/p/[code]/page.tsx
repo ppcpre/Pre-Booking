@@ -1,107 +1,118 @@
 import Link from "next/link";
-import { PropertyThumb } from "@/components/property-thumb";
+import { BookingStatusPill, ModeTag, PeriodStatusPill } from "@/components/status";
 import { requireMember, canManageProperties } from "@/lib/session";
-import { getProperty, getRatePlans, getRoomTypes, getSetupStatus, getUnits } from "@/lib/properties";
-import { signedPhotoUrls } from "@/lib/photos";
+import { getProperty, getSetupStatus } from "@/lib/properties";
+import { bookingLabels, todayView } from "@/lib/bookings";
 import { activationBlockers } from "@/lib/setup";
 import { formatTHB } from "@/lib/money";
-import { PROPERTY_TYPE_LABEL } from "@/lib/types";
+import { fmtDate, fmtDateTime, fmtRange, todayISO } from "@/lib/dates";
 
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }) {
-  return { title: (await params).code };
+  return { title: `Today · ${(await params).code}` };
 }
 
-export default async function PropertyHome({ params }: { params: Promise<{ code: string }> }) {
+export default async function PropertyToday({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const member = await requireMember();
   const p = await getProperty(code);
-  const [roomTypes, units, status, urls] = await Promise.all([
-    getRoomTypes(p.id),
-    getUnits(p.id),
-    getSetupStatus(p.id),
-    signedPhotoUrls([p.photo_path]),
-  ]);
-  const rates = await getRatePlans(roomTypes.map((r) => r.id));
+  const today = todayISO();
+  const [status, view] = await Promise.all([getSetupStatus(p.id), todayView([p.id], today)]);
+  const labels = await bookingLabels([...new Set(view.due.map((d) => d.booking_id))]);
   const blockers = activationBlockers(status);
-  const canManage = canManageProperties(member.role);
+  const base = `/p/${p.code}`;
+  const owing = (b: { total_amount: number; paid_amount: number }) => Math.max(b.total_amount - b.paid_amount, 0);
+  const arrivalsUnpaid = view.arrivals.filter((a) => a.status === "HOLD").length;
+  const dueTotal = view.due.reduce((n, d) => n + d.balance, 0);
+  const overdue = view.due.filter((d) => d.status === "OVERDUE");
 
   return (
-    <div className="page">
-      <div>
-        <div className="crumb"><Link href="/">All properties</Link> / {p.name}</div>
-        <div className="head">
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <PropertyThumb name={p.name} url={p.photo_path ? urls[p.photo_path] : null} size="lg" />
-            <div>
-              <h1>{p.name}</h1>
-              <p>{PROPERTY_TYPE_LABEL[p.type]} · {units.length} units · check-in {p.check_in_time.slice(0, 5)} · check-out {p.check_out_time.slice(0, 5)}</p>
-            </div>
-          </div>
-          {canManage && <div className="actions"><Link className="btn" href={`/settings/properties/${p.code}/details`}>Property settings</Link></div>}
-        </div>
-      </div>
-
+    <>
       {p.status === "DRAFT" && (
-        <div className="card" style={{ background: "var(--amber-bg)", borderColor: "var(--amber-bg)" }}>
-          <h2>This property is a draft <span>not open for bookings yet</span></h2>
-          {blockers.length > 0 ? (
-            <ul style={{ margin: 0, paddingLeft: 18 }}>{blockers.map((b) => <li key={b}>{b}</li>)}</ul>
-          ) : (
-            <p style={{ margin: 0 }}>Everything is set. Open it from the last setup step.</p>
-          )}
-          {canManage && <div><Link className="btn primary" href={`/settings/properties/${p.code}/${blockers.length ? "details" : "staff"}`}>Continue setup</Link></div>}
+        <div className="notice">
+          <span><b>This property is a draft.</b> {blockers.length ? blockers.join(" · ") : "Everything is set — open it from the last setup step."}</span>
+          {canManageProperties(member.role) && <Link className="btn sm" href={`/settings/properties/${p.code}/${blockers.length ? "details" : "staff"}`}>Continue setup</Link>}
         </div>
       )}
 
+      <div className="kcards" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+        <Link className="kcard mint" href={`${base}/bookings?tab=upcoming`}><span className="n">{view.arrivals.length}</span><span className="l">Arriving today</span><span className="h">{arrivalsUnpaid ? `${arrivalsUnpaid} still to pay` : "all paid"}</span></Link>
+        <div className="kcard"><span className="n">{view.departures.length}</span><span className="l">Leaving today</span><span className="h">{fmtDate(today)}</span></div>
+        <Link className="kcard" href={`${base}/bookings?tab=inhouse`}><span className="n">{view.inHouse}</span><span className="l">In house</span><span className="h">checked in now</span></Link>
+        <Link className={`kcard ${view.reserved.length ? "warn" : ""}`} href={`${base}/bookings?tab=reserved`}><span className="n">{view.reserved.length}</span><span className="l">Reserved, not paid</span><span className="h">{view.reserved[0]?.hold_expires_at ? `next due ${fmtDateTime(view.reserved[0].hold_expires_at)}` : "none waiting"}</span></Link>
+        <Link className={`kcard ${overdue.length ? "bad" : ""}`} href={`${base}/payments`}><span className="n">{formatTHB(dueTotal)}</span><span className="l">{overdue.length ? "Due · overdue" : "Due now"}</span><span className="h">{view.due.length} period{view.due.length === 1 ? "" : "s"}</span></Link>
+      </div>
+
+      <div className="split">
+        <div className="card">
+          <h2>Arriving today <span>{view.arrivals.length}</span></h2>
+          {view.arrivals.length === 0 ? <span className="hint">No arrivals today.</span> : (
+            <div className="list">
+              {view.arrivals.map((b) => (
+                <Link key={b.id} className="it" href={`${base}/bookings/${b.code}`}>
+                  <span className="unit">{b.unit?.code}</span>
+                  <span style={{ minWidth: 0 }}><b>{b.guest?.full_name}</b><small><ModeTag mode={b.mode} /> {owing(b) ? `${formatTHB(owing(b))} to pay` : "paid"}</small></span>
+                  <BookingStatusPill status={b.status} />
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="card">
+          <h2>Leaving today <span>{view.departures.length}</span></h2>
+          {view.departures.length === 0 ? <span className="hint">No departures today.</span> : (
+            <div className="list">
+              {view.departures.map((b) => (
+                <Link key={b.id} className="it" href={`${base}/bookings/${b.code}`}>
+                  <span className="unit">{b.unit?.code}</span>
+                  <span style={{ minWidth: 0 }}><b>{b.guest?.full_name}</b><small><ModeTag mode={b.mode} /> {owing(b) ? `${formatTHB(owing(b))} owed` : "nothing owed"}</small></span>
+                  <BookingStatusPill status={b.status} />
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="split wide">
         <div className="block">
-          <h2>Units <span>{units.length}</span></h2>
-          {units.length === 0 ? (
-            <div className="empty"><b>No units yet</b>{canManage && <Link className="btn" href={`/settings/properties/${p.code}/units`}>Add units</Link>}</div>
-          ) : (
+          <h2>Payments due <span>confirmed, in-house and departed stays</span></h2>
+          {view.due.length === 0 ? <div className="empty"><b>Nothing due</b><span>Rent and stay payments that are due or overdue show here.</span></div> : (
             <div className="panel tw">
               <table className="t">
-                <thead><tr><th>Unit</th><th>Floor</th><th>Room type</th><th>Rented as</th><th>Status</th></tr></thead>
+                <thead><tr><th>Unit</th><th>Guest</th><th>Period</th><th className="r">Balance</th><th>Status</th></tr></thead>
                 <tbody>
-                  {units.map((u) => (
-                    <tr key={u.id}>
-                      <td className="unit">{u.code}</td>
-                      <td>{u.floor ?? <span className="dim">–</span>}</td>
-                      <td>{roomTypes.find((r) => r.id === u.room_type_id)?.name}</td>
-                      <td style={{ display: "flex", gap: 4 }}>
-                        {u.allowed_modes.includes("DAILY") && <span className="tag">Daily</span>}
-                        {u.allowed_modes.includes("YEARLY") && <span className="tag y">Yearly</span>}
-                      </td>
-                      <td><span className={`st ${u.status === "ACTIVE" ? "ok" : u.status === "MAINTENANCE" ? "warn" : "idle"}`}>{u.status === "ACTIVE" ? "Active" : u.status === "MAINTENANCE" ? "Maintenance" : "Inactive"}</span></td>
-                    </tr>
-                  ))}
+                  {view.due.map((d) => {
+                    const l = labels.get(d.booking_id);
+                    return (
+                      <tr key={d.id} className="link">
+                        <td className="unit"><Link className="rowlink" href={`${base}/bookings/${d.booking_code}`}>{l?.unit}</Link></td>
+                        <td>{l?.guest}</td>
+                        <td className="hint">{d.label}</td>
+                        <td className="r">{formatTHB(d.balance)}</td>
+                        <td><PeriodStatusPill status={d.status} daysLate={d.days_late} /></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </div>
-        <div className="block">
-          <h2>Rates</h2>
-          <div className="card">
-            {roomTypes.length === 0 && <span className="dim">No room types yet.</span>}
-            {roomTypes.map((rt) => {
-              const d = rates.find((r) => r.room_type_id === rt.id && r.mode === "DAILY");
-              const y = rates.find((r) => r.room_type_id === rt.id && r.mode === "YEARLY");
-              return (
-                <div key={rt.id} style={{ display: "grid", gap: 2 }}>
-                  <b style={{ fontWeight: 500 }}>{rt.name}</b>
-                  <span className="hint">
-                    {d ? `Daily ${formatTHB(d.base_amount)}/night${d.weekend_amount ? ` · Fri–Sat ${formatTHB(d.weekend_amount)}` : ""}` : "Daily: not set"}
-                    {" · "}
-                    {y ? `Yearly ${formatTHB(y.base_amount)}/month` : "Yearly: not set"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          <p className="hint">Today&apos;s arrivals, the calendar and payments for this property arrive in the next sprint.</p>
+        <div className="card">
+          <h2>Reserved, not paid <span>released automatically at the pay-by time</span></h2>
+          {view.reserved.length === 0 ? <span className="hint">No unpaid reservations.</span> : (
+            <div className="list">
+              {view.reserved.map((b) => (
+                <Link key={b.id} className="it" href={`${base}/bookings/${b.code}`}>
+                  <span className="unit">{b.unit?.code}</span>
+                  <span style={{ minWidth: 0 }}><b>{b.guest?.full_name}</b><small>{fmtRange(b.check_in, b.check_out)} · {formatTHB(owing(b))}</small></span>
+                  <small className="hint">by {b.hold_expires_at ? fmtDateTime(b.hold_expires_at) : "–"}</small>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </>
   );
 }
