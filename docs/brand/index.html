@@ -1,0 +1,339 @@
+<title>Pre-Booking Logo &amp; App</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500&display=swap">
+<style>
+/* Layout: four logo candidates as comparable columns, then the installed app on four phones. Mint stays inside the marks and the app; the page around them is quiet. */
+:root {
+  --page: #f6faf8;
+  --surface: #ffffff;
+  --ink: #17211d;
+  --ink-2: #4a5853;
+  --muted: #7d8b86;
+  --line: #e5ede9;
+  --line-2: #d4e0db;
+  --mint-50: #eef8f3;
+  --mint-100: #dcf1e7;
+  --accent: #2c6a55;
+  --on-accent: #ffffff;
+  --amber: #b07d1a; --amber-bg: #fbf2de;
+  --coral: #b9483e; --coral-bg: #fbe8e4;
+  --sky: #3a77a8; --sky-bg: #e6f0f8;
+  --font: "Instrument Sans", "IBM Plex Sans Thai", system-ui, sans-serif;
+  --th: "IBM Plex Sans Thai", "Instrument Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #0f1513; --surface: #141c19; --ink: #e5eeea; --ink-2: #b4c2bc; --muted: #84938d; --line: #202c28; --line-2: #2b3a35;
+    --mint-50: #172520; --mint-100: #1c3029; --accent: #9fdcc4; --on-accent: #0f1513;
+    --amber: #e3b45a; --amber-bg: #33291a; --coral: #ef9a8f; --coral-bg: #3a2220; --sky: #8cbde3; --sky-bg: #1a2a37;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #0f1513; --surface: #141c19; --ink: #e5eeea; --ink-2: #b4c2bc; --muted: #84938d; --line: #202c28; --line-2: #2b3a35;
+  --mint-50: #172520; --mint-100: #1c3029; --accent: #9fdcc4; --on-accent: #0f1513;
+  --amber: #e3b45a; --amber-bg: #33291a; --coral: #ef9a8f; --coral-bg: #3a2220; --sky: #8cbde3; --sky-bg: #1a2a37;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--page); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 72px; }
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 56px; }
+header h1 { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -.02em; }
+header p { margin: 6px 0 0; color: var(--muted); font-family: var(--th); max-width: 62ch; }
+section { display: grid; gap: 20px; }
+section > h2 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.th { font-family: var(--th); }
+
+/* Logos */
+.logos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1000px) { .logos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .logos { grid-template-columns: minmax(0, 1fr); } }
+.opt { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 18px; align-content: start; }
+.opt.pick { border-color: var(--accent); box-shadow: 0 0 0 3px var(--mint-100); }
+.opt .hero { display: grid; place-items: center; padding: 18px 0 6px; }
+.opt .hero svg { width: 104px; height: 104px; border-radius: 24px; box-shadow: 0 1px 2px rgba(23,33,29,.06), 0 10px 24px rgba(23,33,29,.08); }
+.opt .name { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.opt .name b { font-size: 16px; font-weight: 600; }
+.opt .name span { font-size: 12px; color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
+.opt p { margin: 0; color: var(--ink-2); font-family: var(--th); font-size: 13.5px; }
+.lockup { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; background: var(--page); }
+.lockup svg { width: 30px; height: 30px; border-radius: 8px; flex: none; }
+.lockup b { font-size: 17px; font-weight: 600; letter-spacing: -.015em; }
+.lockup.dark { background: #0f1513; color: #e5eeea; }
+.sizes { display: flex; align-items: end; gap: 14px; }
+.sizes svg { flex: none; }
+.sizes small { color: var(--muted); font-size: 11.5px; display: block; text-align: center; margin-top: 4px; }
+.choose { justify-self: start; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 7px 14px; font: inherit; font-size: 13.5px; cursor: pointer; }
+.opt.pick .choose { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.choose:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Phones */
+.phones { display: flex; gap: 28px; overflow-x: auto; padding: 4px 4px 12px; }
+.phonecol { flex: none; display: grid; gap: 10px; justify-items: center; }
+.phonecol .cap { font-family: var(--th); font-size: 13px; color: var(--ink-2); text-align: center; max-width: 280px; }
+.phone { width: 286px; height: 600px; border-radius: 42px; padding: 10px; background: #1b2420; box-shadow: 0 20px 40px rgba(23,33,29,.18); flex: none; }
+.scr { position: relative; height: 100%; border-radius: 33px; overflow: hidden; background: #f6faf8; color: #17211d; display: flex; flex-direction: column; font-size: 12.5px; }
+.sbar { height: 34px; display: flex; justify-content: space-between; align-items: center; padding: 0 22px; font-size: 12px; font-weight: 600; flex: none; }
+.island { width: 84px; height: 24px; border-radius: 14px; background: #1b2420; }
+.abar { display: flex; justify-content: space-between; align-items: center; padding: 6px 16px 10px; flex: none; }
+.abar b { font-size: 19px; font-weight: 600; letter-spacing: -.02em; }
+.abar small { display: block; color: #7d8b86; font-size: 11.5px; font-weight: 400; letter-spacing: 0; }
+.plus { width: 32px; height: 32px; border-radius: 50%; background: #2c6a55; color: #fff; display: grid; place-items: center; font-size: 18px; line-height: 1; }
+.body { flex: 1; overflow: hidden; padding: 0 12px; display: grid; gap: 10px; align-content: start; }
+.card { background: #fff; border: 1px solid #e5ede9; border-radius: 14px; padding: 12px; display: grid; gap: 8px; }
+.kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.kpi { background: #fff; border: 1px solid #e5ede9; border-radius: 14px; padding: 10px 12px; }
+.kpi .n { font-size: 20px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.kpi .l { color: #7d8b86; font-size: 11.5px; }
+.kpi.mint { background: #dcf1e7; border-color: #dcf1e7; }
+.kpi.coral .l { color: #b9483e; }
+.card h4 { margin: 0; font-size: 12.5px; font-weight: 600; display: flex; justify-content: space-between; }
+.card h4 span { color: #7d8b86; font-weight: 400; }
+.li { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center; padding-top: 8px; border-top: 1px solid #eef3f1; }
+.li:first-of-type { border-top: 0; padding-top: 0; }
+.li .u { font-weight: 600; font-variant-numeric: tabular-nums; }
+.li small { display: block; color: #7d8b86; font-size: 11px; }
+.mini { border: 1px solid #d4e0db; border-radius: 7px; padding: 3px 8px; font-size: 11px; white-space: nowrap; background: #fff; }
+.mini.p { background: #2c6a55; color: #fff; border-color: #2c6a55; }
+.dot { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: #4a5853; }
+.dot::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #2c6a55; }
+.dot.o { color: #b9483e; } .dot.o::before { background: #b9483e; }
+.dot.u::before { background: transparent; border: 1.5px solid #9aa6a1; width: 4px; height: 4px; }
+.dot.r::before { background: #b07d1a; }
+.tabs { flex: none; display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid #e5ede9; background: #fff; padding: 7px 4px 20px; }
+.tabs div { display: grid; justify-items: center; gap: 3px; font-size: 10px; color: #7d8b86; }
+.tabs div i { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid #9aa6a1; display: block; }
+.tabs div.on { color: #2c6a55; font-weight: 600; }
+.tabs div.on i { border-color: #2c6a55; background: #dcf1e7; }
+.offline { background: #fbf2de; color: #8a5a00; font-size: 11.5px; padding: 6px 12px; text-align: center; flex: none; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 22px 22px 0 0; padding: 10px 16px 26px; display: grid; gap: 10px; box-shadow: 0 -10px 30px rgba(23,33,29,.18); }
+.sheet .grab { width: 38px; height: 4px; border-radius: 2px; background: #d4e0db; justify-self: center; }
+.sheet b { font-size: 16px; }
+.fld { border: 1px solid #d4e0db; border-radius: 9px; padding: 8px 10px; display: grid; gap: 1px; }
+.fld small { color: #7d8b86; font-size: 10.5px; }
+.fld span { font-size: 14px; font-variant-numeric: tabular-nums; }
+.segm { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid #d4e0db; border-radius: 9px; overflow: hidden; font-size: 12px; text-align: center; }
+.segm span { padding: 7px 0; border-left: 1px solid #d4e0db; }
+.segm span:first-child { border-left: 0; }
+.segm span.on { background: #dcf1e7; font-weight: 600; }
+.bigbtn { background: #2c6a55; color: #fff; border-radius: 11px; text-align: center; padding: 11px; font-weight: 600; font-size: 14px; }
+.scrim { position: absolute; inset: 0; background: rgba(23,33,29,.32); }
+.home { background: linear-gradient(180deg, #cfe9de 0%, #eaf5f0 100%); }
+.grid-apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 10px; padding: 20px 18px; }
+.app { display: grid; justify-items: center; gap: 5px; font-size: 10.5px; color: #17211d; }
+.app i { width: 52px; height: 52px; border-radius: 13px; background: rgba(255,255,255,.65); display: block; }
+.app svg { width: 52px; height: 52px; border-radius: 13px; display: block; }
+.app .badge { position: relative; }
+.app .badge::after { content: "3"; position: absolute; top: -5px; right: -5px; width: 18px; height: 18px; border-radius: 50%; background: #e2483d; color: #fff; font-size: 10.5px; font-weight: 600; display: grid; place-items: center; }
+.notif { margin: 8px 12px 0; background: rgba(255,255,255,.88); border-radius: 16px; padding: 10px 12px; display: grid; grid-template-columns: 26px 1fr; gap: 8px; font-size: 11.5px; box-shadow: 0 4px 14px rgba(23,33,29,.10); }
+.notif svg { width: 26px; height: 26px; border-radius: 6px; }
+.notif b { font-size: 12px; display: block; }
+.mtr { display: grid; grid-template-columns: 34px 1fr 70px; gap: 8px; align-items: center; padding-top: 8px; border-top: 1px solid #eef3f1; }
+.mtr:first-of-type { border-top: 0; padding-top: 0; }
+.mtr .in { border: 1px solid #d4e0db; border-radius: 7px; padding: 4px 6px; text-align: right; font-variant-numeric: tabular-nums; }
+.mtr .in.q { border-color: #b07d1a; background: #fbf2de; }
+
+.notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 860px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+.note { border-top: 2px solid var(--accent); padding-top: 12px; font-family: var(--th); color: var(--ink-2); font-size: 13.5px; }
+.note b { display: block; color: var(--ink); font-family: var(--font); margin-bottom: 4px; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- A · Key tag -->
+  <symbol id="lg-a" viewBox="0 0 64 64">
+    <rect width="64" height="64" rx="14" fill="#dcf1e7"/>
+    <circle cx="32" cy="13.5" r="5.2" fill="none" stroke="#2c6a55" stroke-width="2.6"/>
+    <rect x="20" y="18" width="24" height="34" rx="8" fill="#2c6a55"/>
+    <circle cx="32" cy="26" r="3.6" fill="#dcf1e7"/>
+    <rect x="26" y="35" width="12" height="3.2" rx="1.6" fill="#a8dbc5"/>
+    <rect x="26" y="41" width="7.5" height="3.2" rx="1.6" fill="#a8dbc5"/>
+  </symbol>
+  <!-- B · Doorway calendar -->
+  <symbol id="lg-b" viewBox="0 0 64 64">
+    <rect width="64" height="64" rx="14" fill="#ffffff"/>
+    <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.5" fill="none" stroke="#dcf1e7" stroke-width="1.5"/>
+    <path d="M17 52V30a15 15 0 0 1 30 0v22z" fill="#2c6a55"/>
+    <rect x="24" y="31" width="7" height="7" rx="1.8" fill="#a8dbc5"/>
+    <rect x="33" y="31" width="7" height="7" rx="1.8" fill="#a8dbc5"/>
+    <rect x="24" y="40" width="7" height="7" rx="1.8" fill="#a8dbc5"/>
+    <rect x="33" y="40" width="7" height="7" rx="1.8" fill="#ffffff"/>
+  </symbol>
+  <!-- C · Stay bars -->
+  <symbol id="lg-c" viewBox="0 0 64 64">
+    <rect width="64" height="64" rx="14" fill="#2c6a55"/>
+    <rect x="12" y="17" width="28" height="8" rx="4" fill="#dcf1e7"/>
+    <rect x="22" y="28" width="30" height="8" rx="4" fill="#a8dbc5"/>
+    <rect x="12" y="39" width="18" height="8" rx="4" fill="#dcf1e7"/>
+    <rect x="33" y="39" width="10" height="8" rx="4" fill="none" stroke="#a8dbc5" stroke-width="1.6" stroke-dasharray="2.4 2"/>
+  </symbol>
+  <!-- D · P doorway monogram -->
+  <symbol id="lg-d" viewBox="0 0 64 64">
+    <rect width="64" height="64" rx="14" fill="#a8dbc5"/>
+    <path d="M19 12h14a13 13 0 0 1 0 26h-6v14h-8z" fill="#17211d"/>
+    <path d="M27 31v-7.5a4 4 0 0 1 8 0V31z" fill="#a8dbc5"/>
+    <circle cx="33.2" cy="27.6" r=".9" fill="#17211d"/>
+  </symbol>
+</svg>
+
+<div class="wrap">
+  <header>
+    <h1>Pre-Booking · Logo &amp; App</h1>
+    <p>เลือกแล้ว: <b>B · Doorway</b> — ใช้เป็นไอคอนแอป (PWA), favicon และในหน้าจอทั้งหมด · ด้านล่างเป็นตัวอย่างแอปที่ติดตั้งบนมือถือ</p>
+  </header>
+
+  <section>
+    <h2>Logo options</h2>
+    <div class="logos">
+      <div class="opt" data-opt="A">
+        <div class="hero"><svg><use href="#lg-a"/></svg></div>
+        <div class="name"><b>A · Key tag</b><span>key</span></div>
+        <p>ป้ายกุญแจห้องพัก สื่อถึงการเข้าพักและการส่งมอบห้องโดยตรง จำง่าย อ่านออกแม้ไอคอนเล็ก</p>
+        <div class="lockup"><svg><use href="#lg-a"/></svg><b>pre-booking</b></div>
+        <div class="lockup dark"><svg><use href="#lg-a"/></svg><b>pre-booking</b></div>
+        <div class="sizes"><div><svg width="48" height="48"><use href="#lg-a"/></svg><small>48</small></div><div><svg width="32" height="32"><use href="#lg-a"/></svg><small>32</small></div><div><svg width="16" height="16"><use href="#lg-a"/></svg><small>16</small></div></div>
+        <button class="choose" type="button">Choose A</button>
+      </div>
+      <div class="opt pick" data-opt="B">
+        <div class="hero"><svg><use href="#lg-b"/></svg></div>
+        <div class="name"><b>B · Doorway</b><span>door + calendar</span></div>
+        <p>ประตูโค้งที่ข้างในเป็นช่องปฏิทิน ช่องสีขาวคือวันที่ถูกจอง รวม "ที่พัก" กับ "การจอง" ไว้ในรูปเดียว ดูสะอาดบนพื้นขาว</p>
+        <div class="lockup"><svg><use href="#lg-b"/></svg><b>pre-booking</b></div>
+        <div class="lockup dark"><svg><use href="#lg-b"/></svg><b>pre-booking</b></div>
+        <div class="sizes"><div><svg width="48" height="48"><use href="#lg-b"/></svg><small>48</small></div><div><svg width="32" height="32"><use href="#lg-b"/></svg><small>32</small></div><div><svg width="16" height="16"><use href="#lg-b"/></svg><small>16</small></div></div>
+        <button class="choose" type="button">Selected ✓</button>
+      </div>
+      <div class="opt" data-opt="C">
+        <div class="hero"><svg><use href="#lg-c"/></svg></div>
+        <div class="name"><b>C · Stay bars</b><span>tape chart</span></div>
+        <p>แถบการจองจากหน้าปฏิทินของแอป แถบเส้นประคือการจองที่ยังไม่จ่าย พื้นเขียวเข้มทำให้ไอคอนเด่นบนหน้า Home Screen</p>
+        <div class="lockup"><svg><use href="#lg-c"/></svg><b>pre-booking</b></div>
+        <div class="lockup dark"><svg><use href="#lg-c"/></svg><b>pre-booking</b></div>
+        <div class="sizes"><div><svg width="48" height="48"><use href="#lg-c"/></svg><small>48</small></div><div><svg width="32" height="32"><use href="#lg-c"/></svg><small>32</small></div><div><svg width="16" height="16"><use href="#lg-c"/></svg><small>16</small></div></div>
+        <button class="choose" type="button">Choose C</button>
+      </div>
+      <div class="opt" data-opt="D">
+        <div class="hero"><svg><use href="#lg-d"/></svg></div>
+        <div class="name"><b>D · P door</b><span>monogram</span></div>
+        <p>ตัว P ของ Pre-Booking ที่ช่องว่างกลายเป็นประตูมีลูกบิด ดูเป็นแบรนด์ที่สุด เหมาะถ้าจะใช้บนเอกสาร ใบเสร็จ และป้าย</p>
+        <div class="lockup"><svg><use href="#lg-d"/></svg><b>pre-booking</b></div>
+        <div class="lockup dark"><svg><use href="#lg-d"/></svg><b>pre-booking</b></div>
+        <div class="sizes"><div><svg width="48" height="48"><use href="#lg-d"/></svg><small>48</small></div><div><svg width="32" height="32"><use href="#lg-d"/></svg><small>32</small></div><div><svg width="16" height="16"><use href="#lg-d"/></svg><small>16</small></div></div>
+        <button class="choose" type="button">Choose D</button>
+      </div>
+    </div>
+    <p class="th" style="margin:0;color:var(--muted);font-size:13px">แบบ A, C, D เก็บไว้เป็นทางเลือกอ้างอิง</p>
+  </section>
+
+  <section>
+    <h2>Installed app (PWA) · phone</h2>
+    <div class="phones">
+      <!-- Home screen -->
+      <div class="phonecol">
+        <div class="phone"><div class="scr home">
+          <div class="sbar"><span>9:41</span><span class="island"></span><span>5G</span></div>
+          <div class="notif"><svg><use href="#lg-b"/></svg><div><b>Anna Müller arrives today</b>฿2,000 still to pay before check-in · Unit 104</div></div>
+          <div class="grid-apps">
+            <div class="app"><i></i>Photos</div><div class="app"><i></i>LINE</div><div class="app"><i></i>Maps</div><div class="app"><i></i>Bank</div>
+            <div class="app"><span class="badge"><svg><use href="#lg-b"/></svg></span>Pre-Booking</div><div class="app"><i></i>Mail</div><div class="app"><i></i>Notes</div><div class="app"><i></i>Clock</div>
+          </div>
+        </div></div>
+        <div class="cap">ติดตั้งลง Home Screen · ตัวเลขบนไอคอน = งานวันนี้ · แจ้งเตือนฟรีผ่าน Web Push</div>
+      </div>
+
+      <!-- Today cards -->
+      <div class="phonecol">
+        <div class="phone"><div class="scr">
+          <div class="sbar"><span>9:41</span><span class="island"></span><span>5G</span></div>
+          <div class="abar"><b>Today<small>Sukhumvit Residence · Mon 26 Oct</small></b><span class="plus">+</span></div>
+          <div class="body">
+            <div class="kpis">
+              <div class="kpi mint"><div class="n">4</div><div class="l">Arrivals</div></div>
+              <div class="kpi"><div class="n">3</div><div class="l">Departures</div></div>
+              <div class="kpi"><div class="n">38<span style="font-size:13px;color:#7d8b86"> /50</span></div><div class="l">Occupied</div></div>
+              <div class="kpi coral"><div class="n">฿47k</div><div class="l">Overdue rent</div></div>
+            </div>
+            <div class="card"><h4>Arriving <span>4</span></h4>
+              <div class="li"><span class="u">101</span><div>John Smith<small>Daily · paid</small></div><span class="mini">Check in</span></div>
+              <div class="li"><span class="u">104</span><div>Anna Müller<small>Daily · ฿2,000 to pay</small></div><span class="mini p">Pay</span></div>
+              <div class="li"><span class="u">310</span><div>ACME Co., Ltd.<small>Yearly · move-in paid</small></div><span class="mini">Check in</span></div>
+            </div>
+            <div class="card"><h4>Rent due <span>3</span></h4>
+              <div class="li"><span class="u">201</span><div>ACME Co.<small>15 Oct – 15 Nov</small></div><span class="dot o">฿6,240</span></div>
+            </div>
+          </div>
+          <div class="tabs"><div class="on"><i></i>Today</div><div><i></i>Calendar</div><div><i></i>Bookings</div><div><i></i>Payments</div><div><i></i>More</div></div>
+        </div></div>
+        <div class="cap">หน้า Today แบบการ์ด · แถบเมนูด้านล่าง · ปุ่ม + สร้างการจอง</div>
+      </div>
+
+      <!-- Yearly booking + sheet -->
+      <div class="phonecol">
+        <div class="phone"><div class="scr">
+          <div class="sbar"><span>9:41</span><span class="island"></span><span>5G</span></div>
+          <div class="abar"><b>ACME Co., Ltd.<small>Unit 201 · Yearly · ฿15,000/mo</small></b></div>
+          <div class="body">
+            <div class="card">
+              <div class="li"><span class="u">Sep</span><div>15 Sep – 15 Oct<small>Paid 16 Sep</small></div><span class="dot">Paid</span></div>
+              <div class="li"><span class="u">Oct</span><div>15 Oct – 15 Nov<small>฿6,240 of ฿16,240 left</small></div><span class="dot o">Overdue</span></div>
+              <div class="li"><span class="u">Nov</span><div>15 Nov – 15 Dec<small>฿15,000</small></div><span class="dot u">Upcoming</span></div>
+            </div>
+          </div>
+          <div class="scrim"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <b>Record payment</b>
+            <div class="fld"><small>Amount</small><span>฿21,240.00</span></div>
+            <div class="fld"><small>Date received</small><span>26 Oct 2026</span></div>
+            <div class="segm"><span class="on">Transfer</span><span>Cash</span><span>Card</span></div>
+            <div class="fld"><small>Slip</small><span style="color:#7d8b86">Take photo or choose</span></div>
+            <div class="bigbtn">Save payment</div>
+          </div>
+        </div></div>
+        <div class="cap">ฟอร์มเปิดเป็น bottom sheet ใช้มือเดียวได้ · ถ่ายรูปสลิปจากกล้องได้ทันที</div>
+      </div>
+
+      <!-- Offline meters -->
+      <div class="phonecol">
+        <div class="phone"><div class="scr">
+          <div class="sbar"><span>9:41</span><span class="island"></span><span>—</span></div>
+          <div class="offline">You're offline · readings save on this phone</div>
+          <div class="abar"><b>Meters<small>Electricity · 25 Oct · floor 2</small></b></div>
+          <div class="body">
+            <div class="card"><h4>Floor 2 <span>8 of 12</span></h4>
+              <div class="mtr"><span class="u" style="font-weight:600">201</span><div>ACME Co.<small style="display:block;color:#7d8b86;font-size:11px">last 4,512</small></div><span class="in">4,640</span></div>
+              <div class="mtr"><span class="u" style="font-weight:600">202</span><div>Lee Wei<small style="display:block;color:#b07d1a;font-size:11px">lower than last</small></div><span class="in q">3,975</span></div>
+              <div class="mtr"><span class="u" style="font-weight:600">215</span><div>Priya S.<small style="display:block;color:#7d8b86;font-size:11px">last 2,040</small></div><span class="in">2,412</span></div>
+              <div class="mtr"><span class="u" style="font-weight:600">216</span><div>Tom H.<small style="display:block;color:#7d8b86;font-size:11px">last 980</small></div><span class="in" style="color:#9aa6a1">—</span></div>
+            </div>
+            <div class="card" style="background:#fbf2de;border-color:#fbf2de"><span style="font-size:12px;color:#8a5a00">8 readings waiting to sync. They upload when you're back online.</span></div>
+          </div>
+          <div class="tabs"><div><i></i>Today</div><div><i></i>Calendar</div><div><i></i>Bookings</div><div><i></i>Payments</div><div class="on"><i></i>More</div></div>
+        </div></div>
+        <div class="cap">จดมิเตอร์ได้แม้ไม่มีเน็ต (เช่นห้องใต้ดิน) แล้ว sync เองเมื่อกลับมาออนไลน์</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What the PWA adds</h2>
+    <div class="notes">
+      <div class="note"><b>Install without an app store</b>Android/Chrome มีแถบ "Install" ในแอป · iPhone ใช้ Share → Add to Home Screen · ติดตั้งบนคอมเป็นหน้าต่างแยกได้</div>
+      <div class="note"><b>Free notifications</b>แจ้งเตือนการจองใหม่ ลูกค้ามาถึงแต่ยังไม่จ่าย ค่าเช่าเกินกำหนด · iPhone ต้องติดตั้งแอปก่อนจึงรับแจ้งเตือนได้</div>
+      <div class="note"><b>Works on weak signal</b>เปิดเร็วจาก cache · ดูข้อมูลล่าสุดได้ตอนออฟไลน์ · การจองและรับเงินต้องออนไลน์เพื่อกันข้อมูลชนกัน</div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var opts = document.querySelectorAll('.opt');
+  opts.forEach(function (o) {
+    o.querySelector('.choose').addEventListener('click', function () {
+      opts.forEach(function (x) { x.classList.toggle('pick', x === o); });
+    });
+  });
+})();
+</script>

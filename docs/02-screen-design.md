@@ -40,6 +40,13 @@
 
 ## 2. Layout หลัก
 
+> **อัปเดต (v0.3):** หน้าจอจริงดูที่ `docs/ui/index.html`
+> - **Header:** รูปที่พัก + ชื่อที่พัก (กดเพื่อสลับ) · ช่องค้นหา · ปุ่ม New booking · กระดิ่งแจ้งเตือน · **ไอคอน Settings** (รวม Properties, Team, Business, Policies, LINE, Activity log) · **ไอคอนโปรไฟล์มุมขวา** (ชื่อ, Gmail, บทบาท, My notifications, Install app, Sign out)
+> - **Sidebar:** เหลือเฉพาะเมนูงานประจำวัน (Today, Calendar, Bookings, Payments, Meters, Documents)
+> - **Today (Dashboard):** ตัวเลขสรุปและแต่ละส่วนแสดงเป็นการ์ด
+> - **มือถือ (PWA):** ซ่อน sidebar ใช้แถบเมนูด้านล่าง 5 ปุ่ม · header เหลือโลโก้, ที่พัก, ปุ่ม +, กระดิ่ง, โปรไฟล์
+> - **รูปภาพ:** มิเตอร์แนบรูปได้ทุกห้อง · ที่พักมีรูปที่ใช้เป็นไอคอน
+
 ```
 ┌───────────────────────────────────────────────────────────────────────────────┐
 │ ☰ Pre-Booking   [ Property: Sukhumvit Residence ▾ ]   🔍 Search (⌘K)    🔔3  👤 │
