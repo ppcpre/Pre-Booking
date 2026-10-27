@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pre-booking",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "observability": { "enabled": true },
+  // Public values. Secrets (none needed in Sprint 1) go in `wrangler secret put`.
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://YOUR-PROJECT.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "YOUR-ANON-OR-PUBLISHABLE-KEY"
+  }
+}
