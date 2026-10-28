@@ -55,10 +55,8 @@ const WORK = [
   { label: "Calendar", icon: CalendarIcon, path: "/calendar" },
   { label: "Bookings", icon: ListIcon, path: "/bookings" },
   { label: "Payments", icon: CardIcon, path: "/payments" },
-];
-const SOON = [
-  { label: "Meters", icon: BoltIcon },
-  { label: "Documents", icon: DocIcon },
+  { label: "Meters", icon: BoltIcon, path: "/meters" },
+  { label: "Documents", icon: DocIcon, path: "/documents" },
 ];
 
 export function Shell({ member, properties, children }: Props) {
@@ -94,9 +92,6 @@ export function Shell({ member, properties, children }: Props) {
             const current = sub === "" ? path === href : path.startsWith(href);
             return <Link key={label} href={href} aria-current={current ? "page" : undefined}><I />{label}</Link>;
           })}
-          {SOON.map(({ label, icon: I }) => (
-            <span key={label} className="soon" title="Arrives in the next sprint"><I />{label}<em>Soon</em></span>
-          ))}
         </nav>
       </aside>
 

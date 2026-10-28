@@ -10,6 +10,8 @@ export function PropertyTabs({ code }: { code: string }) {
     { href: `${base}/calendar`, label: "Calendar", match: (p: string) => p.startsWith(`${base}/calendar`) },
     { href: `${base}/bookings`, label: "Bookings", match: (p: string) => p.startsWith(`${base}/bookings`) },
     { href: `${base}/payments`, label: "Payments", match: (p: string) => p.startsWith(`${base}/payments`) },
+    { href: `${base}/meters`, label: "Meters", match: (p: string) => p.startsWith(`${base}/meters`) },
+    { href: `${base}/documents`, label: "Documents", match: (p: string) => p.startsWith(`${base}/documents`) },
   ];
   return (
     <nav className="tabs" aria-label="Property">

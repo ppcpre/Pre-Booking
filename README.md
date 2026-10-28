@@ -27,14 +27,24 @@ Booking and lease management for hosts with daily and yearly rentals. Staff sign
 | Payments | Amount, date received, method, reference; withholding tax for company tenants. Applied to the oldest period first (or chosen periods). Overpayment is kept as credit. Managers and accountants can void with a reason. Every period shows its status (Upcoming, Due, Part paid, Overdue, Paid) and the date it was paid |
 | Screens | Today per property · Calendar (tap an empty day to book; block dates for maintenance) · Bookings (Upcoming, Reserved, In house, Past, Cancelled) · New booking wizard (type → dates & unit → guest → review) · Booking detail (record payment, check in/out, no-show, cancel with refund from the cancellation policy) · Payments (outstanding by age, payments received) · Overview with live numbers across all properties |
 
-Meters and documents (invoice, receipt) come next. They show as "Soon" in the sidebar.
+## What's in Sprint 3
+
+| Area | Done |
+|---|---|
+| Meters | Reading sheet per property (Electricity / Water, any date up to today): last reading, usage, warnings for a lower number or 3× usual use, a photo per meter (opens the camera on phones, shrunk before upload). A lower reading needs "meter replaced". Readings already billed can't be changed |
+| Utility billing | "Save and add to bills" adds each yearly tenant's use (units × price, at least the minimum charge) to their next unpaid rent period, or to a separate utilities period. Safe to run again. Move-in readings are taken at check-in and are the starting point |
+| Invoices & receipts | English, numbered per property and year (SKV-INV-2026-00001, SKV-RC-2026-00001). A receipt is issued with each payment (on by default) and lists the periods it paid; voiding the payment voids the receipt. Invoices bill chosen periods or everything due in 7 days, with "how to pay". A4 print view with amount in words; save as PDF from the browser's print dialog. Managers and accountants can void |
+| Extend stay | Daily stays: pick a new check-out; extra nights priced at today's rates, due now, using any credit first. Refused if the unit is taken |
+| Move-out & deposit | After a yearly tenant checks out: final meter readings, deductions (cleaning, damage), then the deposit pays what is still owed, oldest first; the rest is recorded as returned |
+
+Lease renewal, notices to move out, reports, LINE notifications and push notifications are still to come.
 
 ## Setup
 
 ### 1. Supabase
 
 1. Create a project (region **Singapore**).
-2. Enable the **pg_cron** extension (Database → Extensions), then run the migrations in `supabase/migrations/` in order. Paste them into the SQL editor, or use `supabase db push`. `..._sprint2_cron.sql` releases unpaid reservations every 5 minutes.
+2. Enable the **pg_cron** extension (Database → Extensions), then run the migrations in `supabase/migrations/` in order. Paste them into the SQL editor, or use `supabase db push`. `..._sprint2_cron.sql` releases unpaid reservations every 5 minutes. The storage migrations create the private `property-photos` and `meter-photos` buckets.
 3. Add yourself as the first admin: edit and run `supabase/seed.example.sql`.
 4. **Authentication → Providers → Google:** turn it on and paste the Client ID and secret from step 2 below. Turn **off** Email sign-up.
 5. **Authentication → Hooks → Before User Created:** choose Postgres function `public.hook_before_user_created`.
@@ -73,7 +83,7 @@ The current bundle is about 1.3 MB gzipped. That is within the Workers free-plan
 | `npm run dev` | Development server |
 | `npm run build` | Next.js production build |
 | `npm run typecheck` | TypeScript check |
-| `npm test` | Unit tests (money, unit ranges, setup checklist, redirects, validation, dates, refunds) |
+| `npm test` | Unit tests (money, unit ranges, setup checklist, redirects, validation, dates, refunds, amounts in words) |
 | `npm run icons` | Regenerate PWA icons in `public/icons` from the logo |
 | `npm run preview` | Build for Cloudflare and run it locally with Wrangler |
 | `npm run deploy` | Build and deploy to Cloudflare |

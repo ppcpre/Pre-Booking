@@ -31,6 +31,15 @@ export const PAYMENT_METHODS = [
 ] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number][0];
 
+/** Labels for every method, including the internal ones that move money instead of receiving it. */
+export const METHOD_LABEL: Record<string, string> = {
+  ...Object.fromEntries(PAYMENT_METHODS),
+  DEPOSIT: "From deposit",
+  CREDIT: "From credit",
+};
+/** Methods that are real money received (excludes deposit and credit transfers). */
+export const isReceived = (method: string) => method !== "DEPOSIT" && method !== "CREDIT";
+
 export const BOOKING_SOURCES = [
   ["WALK_IN", "Walk-in"],
   ["PHONE", "Phone"],

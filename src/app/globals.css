@@ -338,3 +338,36 @@ dialog.sheet h2 { margin: 0; font-size: 18px; }
   .choices { grid-template-columns: minmax(0, 1fr); }
   .list .it { grid-template-columns: 48px minmax(0, 1fr) auto; }
 }
+
+/* ---------- Documents (A4) ---------- */
+.paper { position: relative; background: #fff; color: #17211d; border: 1px solid var(--line); border-radius: 4px; width: 100%; max-width: 760px; padding: 44px 48px; display: grid; gap: 22px; font-size: 13px;
+  box-shadow: 0 1px 2px rgba(23,33,29,.04), 0 12px 32px rgba(23,33,29,.06); }
+.paper .mut { color: #6b7975; }
+.paper .lbl { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #6b7975; }
+.paper-top { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.paper-logo { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; }
+.paper-logo.initials { display: grid; place-items: center; background: #dcf1e7; color: #2c6a55; font-weight: 600; font-size: 18px; }
+.paper-meta { text-align: right; display: grid; gap: 2px; align-content: start; }
+.paper-meta h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: .14em; font-weight: 500; }
+.paper-lines { width: 100%; border-collapse: collapse; }
+.paper-lines th { text-align: left; font-weight: 500; font-size: 11.5px; color: #6b7975; border-bottom: 1px solid #d4e0db; padding: 8px 0; }
+.paper-lines td { padding: 9px 0; border-bottom: 1px solid #e5ede9; vertical-align: top; }
+.paper-lines .r { text-align: right; font-variant-numeric: tabular-nums; }
+.paper-total { display: flex; justify-content: space-between; border-top: 1.5px solid #17211d; padding-top: 10px; font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; }
+.paper-sub { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.paper-foot { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; align-items: flex-end; margin-top: 12px; }
+.paper .sign { color: #17211d; }
+.paper.void { opacity: .85; }
+.void-stamp { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; font-size: 110px; font-weight: 600; letter-spacing: .1em; color: rgba(185,72,62,.18); transform: rotate(-18deg); }
+@media (max-width: 640px) { .paper { padding: 28px 20px; } }
+
+@media print {
+  @page { size: A4; margin: 14mm; }
+  body { background: #fff !important; }
+  body::before, .side, .topbar, .tabbar, .tabs, .no-print, .offline-bar, .page > div:first-child .actions, .crumb { display: none !important; }
+  .page > div:first-child { display: none !important; }
+  .shell { display: block; }
+  main.content { padding: 0 !important; }
+  .page { display: block; max-width: none; }
+  .paper { border: 0; box-shadow: none; max-width: none; padding: 0; }
+}

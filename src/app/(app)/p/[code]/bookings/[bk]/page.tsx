@@ -6,20 +6,24 @@ import { getProperty } from "@/lib/properties";
 import { getBooking } from "@/lib/bookings";
 import { formatTHB, satangToBaht } from "@/lib/money";
 import { daysBetween, fmtDate, fmtDateTime, fmtRange, todayISO } from "@/lib/dates";
-import { BOOKING_STATUS, PAYMENT_METHODS, refundSuggestion } from "@/lib/booking-rules";
-import { cancelBooking, checkIn, checkOut, markNoShow, recordPayment, voidPayment } from "../../actions";
+import { BOOKING_STATUS, METHOD_LABEL, PAYMENT_METHODS, refundSuggestion } from "@/lib/booking-rules";
+import { bookingDocuments } from "@/lib/documents";
+import { InlineAction } from "@/components/action-form";
+import { cancelBooking, checkIn, checkOut, extendStay, issueInvoice, issueReceipt, markNoShow, recordPayment, settleLease, voidPayment } from "../../actions";
+import { addDays } from "@/lib/dates";
 
 export async function generateMetadata({ params }: { params: Promise<{ bk: string }> }) {
   return { title: (await params).bk };
 }
 
-const METHOD_LABEL = Object.fromEntries(PAYMENT_METHODS) as Record<string, string>;
 
 export default async function BookingPage({ params, searchParams }: { params: Promise<{ code: string; bk: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ code, bk }, sp] = await Promise.all([params, searchParams]);
   const member = await requireMember();
   const p = await getProperty(code);
   const b = await getBooking(bk);
+  const docs = await bookingDocuments(b.id);
+  const receiptFor = new Map(docs.filter((d) => d.type === "RECEIPT" && d.status === "ISSUED").map((d) => [d.payment_id, d.number]));
   const today = todayISO();
   const base = `/p/${p.code}`;
 
@@ -84,6 +88,7 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
                   <label className="lb">WHT certificate no.<input className="field" name="wht_cert_no" /></label>
                 </div>
               )}
+              <label className="check" style={{ justifySelf: "start" }}><input type="checkbox" name="issue_receipt" value="1" defaultChecked />Issue a receipt</label>
             </ActionDialog>
           )}
           {canBook && b.status === "CONFIRMED" && b.check_in <= today && (
@@ -96,7 +101,16 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
                   <div className="notice bad">There is {formatTHB(dueNow)} due. Take payment first, or ask a manager.</div>
                 )
               ) : (
-                <p className="hint" style={{ margin: 0 }}>Everything due is paid. {b.mode === "YEARLY" ? "Take the move-in meter readings today." : "Check ID and hand over the key."}</p>
+                <p className="hint" style={{ margin: 0 }}>Everything due is paid. {b.mode === "YEARLY" ? "Record the move-in meter readings below." : "Check ID and hand over the key."}</p>
+              )}
+              {b.mode === "YEARLY" && (
+                <>
+                  <input type="hidden" name="mode" value="YEARLY" />
+                  <div className="form">
+                    <label className="lb">Water meter now<small>Starting point for the first bill</small><input className="field" name="water" inputMode="decimal" /></label>
+                    <label className="lb">Electricity meter now<input className="field" name="electric" inputMode="decimal" /></label>
+                  </div>
+                </>
               )}
             </ActionDialog>
           )}
@@ -114,6 +128,46 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
             <ActionDialog label="No-show" title="Mark as no-show" action={markNoShow} submitLabel="Mark no-show" triggerClass="btn quiet" submitClass="btn danger">
               <Hidden />
               <p className="hint" style={{ margin: 0 }}>The guest didn&apos;t arrive. The room becomes free; payments already taken stay recorded.</p>
+            </ActionDialog>
+          )}
+          {canBook && b.mode === "DAILY" && ["HOLD", "CONFIRMED", "CHECKED_IN"].includes(b.status) && (
+            <ActionDialog label="Extend" title="Extend stay" subtitle={`Now checking out ${fmtDate(b.check_out)}`} action={extendStay} submitLabel="Extend" triggerClass="btn">
+              <Hidden />
+              <label className="lb">New check-out<input className="field" type="date" name="check_out" required min={addDays(b.check_out, 1)} defaultValue={addDays(b.check_out, 1)} /></label>
+              <p className="hint" style={{ margin: 0 }}>The extra nights are added at today&apos;s rates and are due now. Any credit the guest has is used first.</p>
+            </ActionDialog>
+          )}
+          {canPay && owing > 0 && (
+            <ActionDialog label="Invoice" title="Issue invoice" subtitle={`${b.code} · bill to ${guest?.company_name ?? guest?.full_name}`} action={issueInvoice} submitLabel="Issue invoice" triggerClass="btn">
+              <Hidden />
+              <fieldset style={{ border: "1px solid var(--line)", borderRadius: 10, padding: "10px 12px", display: "grid", gap: 6 }}>
+                <legend className="hint" style={{ padding: "0 4px" }}>Include (leave all unticked for everything due in the next 7 days)</legend>
+                {open.slice(0, 14).map((x) => (
+                  <label key={x.id} className="check" style={{ border: 0, padding: 0, background: "none" }}>
+                    <input type="checkbox" name="period_ids" value={x.id} />{x.seq === 0 ? "Deposit and move-in" : x.label} · due {fmtDate(x.due_date, false)} · {formatTHB(x.balance)}
+                  </label>
+                ))}
+              </fieldset>
+            </ActionDialog>
+          )}
+          {b.mode === "YEARLY" && b.status === "CHECKED_OUT" && b.lease && !b.lease.settled_at && (
+            <ActionDialog label="Settle deposit" title="Move-out and deposit" subtitle={`Deposit held ${formatTHB(b.lease.deposit_amount)}`} action={settleLease} submitLabel="Settle deposit" triggerClass="btn primary">
+              <Hidden />
+              <div className="form">
+                <label className="lb">Water meter at move-out<input className="field" name="WATER" inputMode="decimal" /></label>
+                <label className="lb">Electricity meter at move-out<input className="field" name="ELECTRIC" inputMode="decimal" /></label>
+              </div>
+              <div style={{ display: "grid", gap: 8 }}>
+                <span className="lb">Deductions <small>Cleaning, damage, missing keys…</small></span>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="form" style={{ gridTemplateColumns: "1fr 130px" }}>
+                    <input className="field" name="deduction_description" placeholder={i === 0 ? "Cleaning" : "Description"} aria-label="Deduction description" />
+                    <input className="field" name="deduction_amount" inputMode="decimal" placeholder="฿" aria-label="Deduction amount" />
+                  </div>
+                ))}
+              </div>
+              <label className="lb">Return the rest by<select className="field" name="refund_method" defaultValue="TRANSFER">{PAYMENT_METHODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+              <p className="hint" style={{ margin: 0 }}>The deposit first pays anything still owed (rent, final utilities, deductions). What&apos;s left is recorded as returned to the tenant.</p>
             </ActionDialog>
           )}
           {canBook && (b.status === "HOLD" || b.status === "CONFIRMED") && (
@@ -195,13 +249,20 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
                     <b style={{ textDecoration: pay.voided_at ? "line-through" : undefined }}>{formatTHB(pay.amount)} · {METHOD_LABEL[pay.method] ?? pay.method}{pay.wht_amount ? ` + WHT ${formatTHB(pay.wht_amount)}` : ""}</b>
                     <small>{fmtDate(pay.paid_at)}{pay.reference ? ` · ref ${pay.reference}` : ""}{pay.note ? ` · ${pay.note}` : ""}{pay.voided_at ? ` · void: ${pay.void_reason}` : ""}</small>
                   </span>
-                  {!pay.voided_at && canVoid && (
+                  <span className="actions" style={{ flexWrap: "nowrap" }}>
+                  {receiptFor.get(pay.id) ? (
+                    <Link className="btn sm quiet" href={`${base}/documents/${receiptFor.get(pay.id)}`}>Receipt</Link>
+                  ) : !pay.voided_at && pay.method !== "DEPOSIT" && pay.method !== "CREDIT" ? (
+                    <InlineAction action={issueReceipt} fields={{ ...hidden, payment_id: pay.id }} label="Issue receipt" className="btn sm quiet" />
+                  ) : null}
+                  {!pay.voided_at && canVoid && pay.method !== "DEPOSIT" && pay.method !== "CREDIT" && (
                     <ActionDialog label="Void" title="Void payment" subtitle={`${formatTHB(pay.amount)} on ${fmtDate(pay.paid_at)}`} action={voidPayment} submitLabel="Void payment" triggerClass="btn sm quiet" submitClass="btn danger">
                       <Hidden />
                       <input type="hidden" name="payment_id" value={pay.id} />
                       <label className="lb">Reason<input className="field" name="reason" required placeholder="Entered twice" /></label>
                     </ActionDialog>
                   )}
+                  </span>
                 </div>
               ))}
               {b.refunds.map((r) => (
@@ -233,9 +294,23 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
                 <span>Rent {formatTHB(b.lease.rent_amount)}/month · paid monthly</span>
                 <span>Deposit {formatTHB(b.lease.deposit_amount)} ({b.lease.deposit_months} months) · {b.lease.advance_months} month{b.lease.advance_months === 1 ? "" : "s"} in advance</span>
                 <span className="hint">Notice to move out: {b.lease.notice_days} days</span>
+                {b.lease.settled_at && <span>Deposit settled: {formatTHB(b.lease.deposit_used)} used · {formatTHB(b.lease.deposit_refunded)} returned</span>}
               </div>
             </div>
           )}
+          <div className="card">
+            <h2>Documents <span>{docs.length}</span></h2>
+            {docs.length === 0 ? <span className="hint">Receipts are issued with payments. Use Invoice to bill what&apos;s due.</span> : (
+              <div style={{ display: "grid", gap: 6, fontSize: 13.5 }}>
+                {docs.map((d) => (
+                  <Link key={d.id} href={`${base}/documents/${d.number}`} style={{ display: "flex", justifyContent: "space-between", gap: 10, textDecoration: "none", opacity: d.status === "VOID" ? 0.55 : 1 }}>
+                    <span><span className="code">{d.number}</span> · {d.type === "INVOICE" ? "Invoice" : "Receipt"}{d.status === "VOID" ? " · void" : ""}</span>
+                    <span>{formatTHB(d.total)}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="card">
             <h2>Activity</h2>
             <div style={{ display: "grid", gap: 6, fontSize: 13 }}>

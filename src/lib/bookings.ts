@@ -92,7 +92,7 @@ export type BookingDetail = BookingRow & {
   payments: Payment[];
   refunds: { id: string; amount: number; refunded_at: string; method: string; reason: string }[];
   history: { id: number; from_status: BookingStatus | null; to_status: BookingStatus; reason: string | null; changed_at: string }[];
-  lease: { start_date: string; end_date: string; rent_amount: number; deposit_amount: number; deposit_months: number; advance_months: number; notice_days: number } | null;
+  lease: { start_date: string; end_date: string; rent_amount: number; deposit_amount: number; deposit_months: number; advance_months: number; notice_days: number; settled_at: string | null; deposit_used: number; deposit_refunded: number } | null;
 };
 
 export const getBooking = cache(async (code: string): Promise<BookingDetail> => {

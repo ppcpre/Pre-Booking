@@ -5,10 +5,9 @@ import { getProperty } from "@/lib/properties";
 import { bookingLabels, recentPayments, todayView } from "@/lib/bookings";
 import { formatTHB } from "@/lib/money";
 import { fmtDate, todayISO } from "@/lib/dates";
-import { PAYMENT_METHODS } from "@/lib/booking-rules";
+import { METHOD_LABEL, isReceived } from "@/lib/booking-rules";
 
 export const metadata = { title: "Payments" };
-const METHOD_LABEL = Object.fromEntries(PAYMENT_METHODS) as Record<string, string>;
 
 export default async function PaymentsPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ code }, sp] = await Promise.all([params, searchParams]);
@@ -28,7 +27,7 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
     { label: "60+ days late", match: (d: (typeof due)[number]) => d.status === "OVERDUE" && d.days_late > 60 },
   ];
   const byMethod = new Map<string, number>();
-  for (const pay of payments) if (!pay.voided_at) byMethod.set(pay.method, (byMethod.get(pay.method) ?? 0) + pay.amount);
+  for (const pay of payments) if (!pay.voided_at && isReceived(pay.method)) byMethod.set(pay.method, (byMethod.get(pay.method) ?? 0) + pay.amount);
 
   return (
     <>

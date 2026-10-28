@@ -229,10 +229,15 @@ export async function recordPayment(_: ActionResult, fd: FormData): Promise<Acti
     },
   });
   if (error) return { error: rpcMessage(error) };
-  refresh(p.data.property_code, p.data.booking_code);
-  const r = data as { confirmed?: boolean; credit?: number; duplicate?: boolean };
+  const r = data as { payment_id: string; confirmed?: boolean; credit?: number; duplicate?: boolean };
   if (r.duplicate) return { ok: true, message: "This payment was already saved." };
   const parts = ["Payment saved."];
+  if (fd.get("issue_receipt") === "1") {
+    const rc = await supabase.rpc("issue_receipt", { p_payment: r.payment_id });
+    if (rc.error) parts.push(`Receipt not issued: ${rpcMessage(rc.error)}`);
+    else parts.push(`Receipt ${(rc.data as { number: string }).number} issued.`);
+  }
+  refresh(p.data.property_code, p.data.booking_code);
   if (r.confirmed) parts.push("The booking is now confirmed.");
   if (r.credit && r.credit > 0) parts.push(`฿${(r.credit / 100).toLocaleString("en-US")} kept as credit.`);
   return { ok: true, message: parts.join(" ") };
@@ -261,6 +266,16 @@ async function lifecycle(fn: string, args: Record<string, unknown>, fd: FormData
 
 export async function checkIn(_: ActionResult, fd: FormData): Promise<ActionResult> {
   const reason = String(fd.get("override_reason") ?? "").trim();
+  if (fd.get("mode") === "YEARLY") {
+    const num = (k: string) => {
+      const v = String(fd.get(k) ?? "").replace(/,/g, "").trim();
+      return v === "" ? null : Number(v);
+    };
+    const water = num("water");
+    const electric = num("electric");
+    if ([water, electric].some((v) => v !== null && (!Number.isFinite(v) || v < 0))) return { error: "Meter readings must be numbers of 0 or more" };
+    return lifecycle("check_in_yearly", { p_booking: String(fd.get("booking_id")), p_water: water, p_electric: electric, p_override_reason: reason || null }, fd, "Checked in");
+  }
   return lifecycle("check_in", { p_booking: String(fd.get("booking_id")), p_override_reason: reason || null }, fd, "Checked in");
 }
 
@@ -312,4 +327,126 @@ export async function removeBlock(fd: FormData) {
   const supabase = await createClient();
   await supabase.rpc("remove_block", { p_booking: String(fd.get("booking_id")) });
   refresh(String(fd.get("property_code")));
+}
+
+// ------------------------------------------------------------------ extend & move-out
+export async function extendStay(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  const d = isoDate.safeParse(fd.get("check_out"));
+  if (!d.success) return { error: "Pick the new check-out date" };
+  await requireMember();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("extend_stay", { p_booking: String(fd.get("booking_id")), p_new_check_out: d.data });
+  if (error) return { error: rpcMessage(error) };
+  refresh(String(fd.get("property_code")), String(fd.get("booking_code")));
+  const r = data as { nights: number; total: number };
+  return { ok: true, message: `Added ${r.nights} night${r.nights > 1 ? "s" : ""} · ฿${(r.total / 100).toLocaleString("en-US")} to pay` };
+}
+
+export async function settleLease(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  const readings: Record<string, number> = {};
+  for (const k of ["WATER", "ELECTRIC"]) {
+    const v = String(fd.get(k) ?? "").replace(/,/g, "").trim();
+    if (v === "") continue;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0) return { error: "Meter readings must be numbers of 0 or more" };
+    readings[k] = n;
+  }
+  const deductions: { description: string; amount: number }[] = [];
+  const descs = fd.getAll("deduction_description").map(String);
+  const amts = fd.getAll("deduction_amount").map(String);
+  for (let i = 0; i < descs.length; i++) {
+    if (!descs[i]!.trim() && !amts[i]!.trim()) continue;
+    if (!descs[i]!.trim()) return { error: "Each deduction needs a description" };
+    try {
+      deductions.push({ description: descs[i]!.trim(), amount: bahtToSatang(amts[i]!) });
+    } catch {
+      return { error: `Deduction "${descs[i]}": enter an amount like 1500` };
+    }
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("settle_lease", {
+    p: { booking_id: String(fd.get("booking_id")), readings, deductions, refund_method: String(fd.get("refund_method") ?? "TRANSFER") },
+  });
+  if (error) return { error: rpcMessage(error) };
+  refresh(String(fd.get("property_code")), String(fd.get("booking_code")));
+  const r = data as { used: number; refund: number; still_owed: number };
+  const baht = (n: number) => `฿${(n / 100).toLocaleString("en-US")}`;
+  return { ok: true, message: `Deposit settled: ${baht(r.used)} used, ${baht(r.refund)} to return${r.still_owed ? `, ${baht(r.still_owed)} still owed` : ""}.` };
+}
+
+// ------------------------------------------------------------------ documents
+export async function issueInvoice(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  const ids = fd.getAll("period_ids").map(String);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("issue_invoice", { p_booking: String(fd.get("booking_id")), p_period_ids: ids.length ? ids : null, p_until: null });
+  if (error) return { error: rpcMessage(error) };
+  refresh(String(fd.get("property_code")), String(fd.get("booking_code")));
+  return { ok: true, message: `Invoice ${(data as { number: string }).number} issued` };
+}
+
+export async function issueReceipt(fd: FormData) {
+  await requireMember();
+  const supabase = await createClient();
+  await supabase.rpc("issue_receipt", { p_payment: String(fd.get("payment_id")) });
+  refresh(String(fd.get("property_code")), String(fd.get("booking_code")));
+}
+
+export async function voidDocument(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("void_document", { p_document: String(fd.get("document_id")), p_reason: String(fd.get("reason") ?? "") });
+  if (error) return { error: rpcMessage(error) };
+  revalidatePath(`/p/${String(fd.get("property_code"))}`, "layout");
+  return { ok: true, message: "Document voided" };
+}
+
+// ------------------------------------------------------------------ meters
+const readingRow = z.object({ unit_id: uuid, value: z.string(), photo_path: z.string().optional(), allow_lower: z.boolean().default(false) });
+
+export async function saveReadings(input: { propertyCode: string; date: string; utility: "WATER" | "ELECTRIC"; rows: z.input<typeof readingRow>[] }): Promise<Result<{ saved: number; errors: { unit_id: string; error: string }[] }>> {
+  await requireMember();
+  const date = isoDate.safeParse(input.date);
+  if (!date.success) return { ok: false, error: "Pick the reading date" };
+  if (date.data > todayISO()) return { ok: false, error: "Readings can't be in the future" };
+  const supabase = await createClient();
+  let saved = 0;
+  const errors: { unit_id: string; error: string }[] = [];
+  for (const raw of input.rows) {
+    const row = readingRow.safeParse(raw);
+    if (!row.success) continue;
+    const v = row.data.value.replace(/,/g, "").trim();
+    if (v === "") continue;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0) {
+      errors.push({ unit_id: row.data.unit_id, error: "Enter a number of 0 or more" });
+      continue;
+    }
+    const { error } = await supabase.rpc("save_meter_reading", {
+      p_unit: row.data.unit_id,
+      p_utility: input.utility,
+      p_date: date.data,
+      p_value: n,
+      p_type: "MONTHLY",
+      p_booking: null,
+      p_photo: row.data.photo_path || null,
+      p_allow_lower: row.data.allow_lower,
+    });
+    if (error) errors.push({ unit_id: row.data.unit_id, error: rpcMessage(error) });
+    else saved++;
+  }
+  revalidatePath(`/p/${input.propertyCode}/meters`);
+  return { ok: true, data: { saved, errors } };
+}
+
+export async function billUtilities(input: { propertyId: string; propertyCode: string; date: string }): Promise<Result<{ billed: number; skipped: number; total: number }>> {
+  await requireMember();
+  const date = isoDate.safeParse(input.date);
+  if (!date.success) return { ok: false, error: "Pick the reading date" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("bill_utilities", { p_property: input.propertyId, p_date: date.data });
+  if (error) return { ok: false, error: rpcMessage(error) };
+  refresh(input.propertyCode);
+  return { ok: true, data: data as { billed: number; skipped: number; total: number } };
 }
