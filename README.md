@@ -41,6 +41,8 @@ Lease renewal, notices to move out, reports, LINE notifications and push notific
 
 ## Setup
 
+Step-by-step guide in Thai: **`docs/SETUP.md`**.
+
 ### 1. Supabase
 
 1. Create a project (region **Singapore**).
