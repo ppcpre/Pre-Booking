@@ -68,7 +68,7 @@ export default async function CalendarPage({ params, searchParams }: { params: P
                         {u.allowed_modes.includes("YEARLY") && <span className="tag y">Y</span>}
                       </div>
                       {dates.map((d, i) =>
-                        canBook && u.status === "ACTIVE" && d >= today ? (
+                        canBook && u.status === "ACTIVE" ? (
                           <Link key={d} className={`cal-cell ${isWeekend(d) ? "we" : ""}`} style={{ gridColumn: i + 2 }}
                             href={`/p/${p.code}/bookings/new?unit=${u.id}&start=${d}`} aria-label={`New booking, unit ${u.code}, ${fmtDate(d)}`} />
                         ) : (
@@ -104,7 +104,7 @@ export default async function CalendarPage({ params, searchParams }: { params: P
         <span><i style={{ background: "var(--grey-bg)" }} />Checked out</span>
         <span><i style={{ background: "var(--surface)", borderLeft: "3px solid var(--mint-300)" }} />Yearly lease</span>
         <span><i style={{ background: "repeating-linear-gradient(135deg, var(--grey-bg) 0 4px, var(--surface) 4px 8px)", border: "1px solid var(--line)" }} />Blocked</span>
-        {canBook && <span>Tap an empty day to start a booking there.</span>}
+        {canBook && <span>Tap an empty day to start a booking there (past days too, for stays entered later).</span>}
       </div>
 
       {canBook && units.length > 0 && (

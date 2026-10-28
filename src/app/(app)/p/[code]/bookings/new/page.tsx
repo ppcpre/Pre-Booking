@@ -14,7 +14,7 @@ export default async function NewBookingPage({ params, searchParams }: { params:
   const units = await getUnits(p.id);
   const today = todayISO();
   const prefUnit = units.find((u) => u.id === sp.unit);
-  const start = isISODate(sp.start) && sp.start >= today ? sp.start : today;
+  const start = isISODate(sp.start) ? sp.start : today;
   const modes = new Set(units.flatMap((u) => u.allowed_modes));
   return (
     <NewBooking

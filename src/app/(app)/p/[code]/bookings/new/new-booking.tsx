@@ -49,6 +49,9 @@ export function NewBooking({ property, today, initial, modes }: Props) {
   const stayEnd = mode === "DAILY" ? end : addYears(start, years);
   const nights = daysBetween(start, end);
   const chosen = units?.find((u) => u.unit_id === unitId) ?? null;
+  // Entering a stay that started before today (existing tenant, or a past stay recorded late).
+  const backdated = start < today;
+  const ended = stayEnd <= today;
 
   // Auto-search when the dates arrive prefilled from the calendar.
   useEffect(() => {
@@ -182,7 +185,7 @@ export function NewBooking({ property, today, initial, modes }: Props) {
             <h2>{mode === "DAILY" ? "Dates and guests" : "Lease and tenants"} <span>{mode === "DAILY" ? "Daily" : "Yearly"} · <a href="#" onClick={(e) => { e.preventDefault(); setStep(0); }}>change</a></span></h2>
             <div className="form f4">
               <label className="lb">{mode === "DAILY" ? "Check-in" : "Move-in"}
-                <input className="field" type="date" min={today} value={start} onChange={(e) => { const v = e.target.value; setStart(v); if (end <= v) setEnd(addDays(v, 1)); setUnits(null); }} />
+                <input className="field" type="date" value={start} onChange={(e) => { const v = e.target.value; setStart(v); if (end <= v) setEnd(addDays(v, 1)); setUnits(null); }} />
               </label>
               {mode === "DAILY" ? (
                 <label className="lb">Check-out<small>{nights > 0 ? `${nights} night${nights > 1 ? "s" : ""}` : "after check-in"}</small>
@@ -198,6 +201,11 @@ export function NewBooking({ property, today, initial, modes }: Props) {
               <label className="lb">Adults<input className="field" type="number" min={1} max={20} value={adults} onChange={(e) => { setAdults(Math.max(1, Number(e.target.value))); setUnits(null); }} /></label>
               <label className="lb">Children<input className="field" type="number" min={0} max={20} value={children} onChange={(e) => { setChildren(Math.max(0, Number(e.target.value))); setUnits(null); }} /></label>
             </div>
+            {backdated && (
+              <div className="notice mint">
+                <span><b>Back-dated booking.</b> {ended ? "This stay has already ended: it is saved as checked out, for the record." : "The stay is already under way: it is saved as confirmed, without a pay-by time. Record past payments with the date they were received, then check in."}</span>
+              </div>
+            )}
             <div className="formfoot"><span className="hint">{fmtRange(start, stayEnd)}</span><button className="btn primary" type="button" disabled={pending} onClick={search}>{pending ? "Searching…" : "Find available units"}</button></div>
           </div>
 
@@ -286,9 +294,9 @@ export function NewBooking({ property, today, initial, modes }: Props) {
               <label className="lb">Booked via
                 <select className="field" value={source} onChange={(e) => setSource(e.target.value)}>{BOOKING_SOURCES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
               </label>
-              <label className="lb">Pay by<small>{mode === "DAILY" ? `Default: check-in time (${property.checkIn}) on arrival day` : "Default: the reservation window, at the latest on move-in"}</small>
+              {!backdated && <label className="lb">Pay by<small>{mode === "DAILY" ? `Default: check-in time (${property.checkIn}) on arrival day` : "Default: the reservation window, at the latest on move-in"}</small>
                 <input className="field" type="datetime-local" value={payBy} onChange={(e) => setPayBy(e.target.value)} />
-              </label>
+              </label>}
               <label className="lb full">Note<textarea className="field" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Late arrival, extra bed…" /></label>
             </div>
             <div><button className="btn sm" type="button" disabled={pending} onClick={refreshQuote}>Update price</button></div>
@@ -304,7 +312,7 @@ export function NewBooking({ property, today, initial, modes }: Props) {
               <>
                 {quote.periods[0]?.lines.map((l, i) => <div key={i} className="ln"><span>{l.description}</span><span>{formatTHB(l.amount)}</span></div>)}
                 <div className="ln t"><span>Total</span><span>{formatTHB(quote.total)}</span></div>
-                <div className="notice mint">Pay in full before check-in. The unit is held until then.</div>
+                <div className="notice mint">{backdated ? "Back-dated: saved as confirmed (or checked out if the stay has ended). Record payments with the date received." : "Pay in full before check-in. The unit is held until then."}</div>
               </>
             ) : (
               <>
@@ -312,12 +320,12 @@ export function NewBooking({ property, today, initial, modes }: Props) {
                 {quote.periods.filter((p) => p.due_date <= start).map((p) => <div key={p.seq} className="ln"><span>{p.seq === 0 ? "Deposit and move-in" : `Rent ${p.label}`}</span><span>{formatTHB(p.total)}</span></div>)}
                 <div className="ln t"><span>Due to move in</span><span>{formatTHB(quote.due_now)}</span></div>
                 <div className="hint">Then {formatTHB(quote.rent)} each month from {fmtDate(quote.periods.find((p) => p.due_date > start)?.due_date ?? start)} · {quote.periods.filter((p) => p.kind === "RENT").length} months in total</div>
-                <div className="notice mint">The lease confirms once the move-in amount is paid.</div>
+                <div className="notice mint">{backdated ? "Existing tenant: saved as confirmed. Record payments already received with their dates; unpaid months show as overdue." : "The lease confirms once the move-in amount is paid."}</div>
               </>
             )}
             <div style={{ display: "grid", gap: 8 }}>
-              <button className="btn primary" type="button" disabled={pending || !quote} onClick={() => save(true)}>{pending ? "Saving…" : "Save and take payment"}</button>
-              <button className="btn" type="button" disabled={pending || !quote} onClick={() => save(false)}>Save reservation (pay later)</button>
+              <button className="btn primary" type="button" disabled={pending || !quote} onClick={() => save(true)}>{pending ? "Saving…" : backdated ? "Save and record payment" : "Save and take payment"}</button>
+              <button className="btn" type="button" disabled={pending || !quote} onClick={() => save(false)}>{backdated ? "Save booking" : "Save reservation (pay later)"}</button>
               <button className="btn quiet" type="button" onClick={() => setStep(2)}>← Back</button>
             </div>
           </div>

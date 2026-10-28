@@ -46,7 +46,6 @@ export async function findUnits(input: z.input<typeof searchSchema>): Promise<Re
   await requireMember();
   const p = searchSchema.safeParse(input);
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? "Check the dates" };
-  if (p.data.start < todayISO()) return { ok: false, error: "Check-in can't be in the past" };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("available_units", {
     p_property: p.data.propertyId,
