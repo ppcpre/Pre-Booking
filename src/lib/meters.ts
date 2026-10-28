@@ -11,7 +11,7 @@ export type MeterRow = {
   tenant: string | null;
   bookingCode: string | null;
   last: { value: number; date: string } | null;
-  current: { value: number; photoUrl: string | null; billed: boolean } | null;
+  current: { id: string; value: number; photoUrl: string | null; billed: boolean } | null;
   avgUse: number | null; // average monthly use of the last 3 readings, for spotting odd numbers
 };
 
@@ -20,11 +20,11 @@ export async function meterSheet(propertyId: string, date: string, utility: Util
   const supabase = await createClient();
   const [{ data: units }, { data: readings }, { data: meters }, { data: tenants }] = await Promise.all([
     supabase.from("units").select("id, code, floor, allowed_modes, status").eq("property_id", propertyId),
-    supabase.from("meter_readings").select("unit_id, reading_date, value, photo_path, billed_line_id, meter:meters!inner(utility)").eq("property_id", propertyId).eq("meter.utility", utility).lte("reading_date", date).order("reading_date", { ascending: false }).limit(2000),
+    supabase.from("meter_readings").select("id, unit_id, reading_date, value, photo_path, billed_line_id, meter:meters!inner(utility)").eq("property_id", propertyId).eq("meter.utility", utility).lte("reading_date", date).order("reading_date", { ascending: false }).limit(2000),
     supabase.from("meters").select("unit_id, initial_value, installed_on").eq("utility", utility).is("retired_on", null),
     supabase.from("bookings").select("unit_id, code, guest:guests(full_name)").eq("property_id", propertyId).eq("mode", "YEARLY").in("status", ["CONFIRMED", "CHECKED_IN"]).lte("check_in", date).gt("check_out", date),
   ]);
-  const byUnit = new Map<string, { reading_date: string; value: number; photo_path: string | null; billed_line_id: string | null }[]>();
+  const byUnit = new Map<string, { id: string; reading_date: string; value: number; photo_path: string | null; billed_line_id: string | null }[]>();
   for (const r of readings ?? []) byUnit.set(r.unit_id, [...(byUnit.get(r.unit_id) ?? []), r]);
   const photoUrls = await signedUrls("meter-photos", (readings ?? []).filter((r) => r.reading_date === date).map((r) => r.photo_path));
   const meterOf = new Map((meters ?? []).map((m) => [m.unit_id, m]));
@@ -48,7 +48,7 @@ export async function meterSheet(propertyId: string, date: string, utility: Util
         tenant: t?.guest?.full_name ?? null,
         bookingCode: t?.code ?? null,
         last,
-        current: today ? { value: Number(today.value), photoUrl: today.photo_path ? photoUrls[today.photo_path] ?? null : null, billed: !!today.billed_line_id } : null,
+        current: today ? { id: today.id, value: Number(today.value), photoUrl: today.photo_path ? photoUrls[today.photo_path] ?? null : null, billed: !!today.billed_line_id } : null,
         avgUse: uses.length ? uses.reduce((a, b) => a + b, 0) / uses.length : null,
       };
     });

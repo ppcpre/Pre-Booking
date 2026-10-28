@@ -31,11 +31,26 @@ Booking and lease management for hosts with daily and yearly rentals. Staff sign
 
 | Area | Done |
 |---|---|
-| Meters | Reading sheet per property (Electricity / Water, any date up to today): last reading, usage, warnings for a lower number or 3× usual use, a photo per meter (opens the camera on phones, shrunk before upload). A lower reading needs "meter replaced". Readings already billed can't be changed |
+| Meters | Reading sheet per property (Electricity / Water, any date up to today): last reading, usage, warnings for a lower number or 3× usual use, a photo per meter (opens the camera on phones, shrunk before upload). A lower reading needs "meter replaced". Readings already billed can be corrected by a manager (see Corrections) |
 | Utility billing | "Save and add to bills" adds each yearly tenant's use (units × price, at least the minimum charge) to their next unpaid rent period, or to a separate utilities period. Safe to run again. Move-in readings are taken at check-in and are the starting point |
 | Invoices & receipts | English, numbered per property and year (SKV-INV-2026-00001, SKV-RC-2026-00001). A receipt is issued with each payment (on by default) and lists the periods it paid; voiding the payment voids the receipt. Invoices bill chosen periods or everything due in 7 days, with "how to pay". A4 print view with amount in words; save as PDF from the browser's print dialog. Managers and accountants can void |
 | Extend stay | Daily stays: pick a new check-out; extra nights priced at today's rates, due now, using any credit first. Refused if the unit is taken |
 | Move-out & deposit | After a yearly tenant checks out: final meter readings, deductions (cleaning, damage), then the deposit pays what is still owed, oldest first; the rest is recorded as returned |
+
+## Corrections (edit past data)
+
+Every correction asks for a reason and is written to the booking's activity and the audit log. Money stays consistent: if a period ends up costing less than was paid on it, the difference becomes the guest's credit; credit is used automatically for anything newly owed.
+
+| What | Who | Notes |
+|---|---|---|
+| Guest and booking details | Front desk and up | Name, contacts, company billing, guests, source, note |
+| Daily stay dates / unit | Front desk for future stays; managers once the stay has started or ended | Nights re-priced at the unit's rate; extra charges and discounts kept |
+| Yearly lease | Managers | Unit, length (shorter removes unpaid months), rent from a chosen month (paid months keep their rent), move-in date while no rent is paid |
+| Charges and discounts | Charges: front desk; discounts and closed bookings: managers | Added to a period or as a separate charge |
+| Periods | Managers | Due date, waive / reopen, remove a charge (meter charges can then be billed again) |
+| Payments | Managers and accountants | Date, method, reference, note; the receipt is voided and reissued. To change the amount, void and record again |
+| Status | Managers | Undo check-in, undo check-out, reopen a cancelled / expired / no-show booking, fix arrival and departure times |
+| Meter readings | Managers (billed readings) | Correct or delete; this reading's charge and the next one's are recalculated |
 
 Lease renewal, notices to move out, reports, LINE notifications and push notifications are still to come.
 

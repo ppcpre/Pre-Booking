@@ -53,6 +53,7 @@ export type PeriodRow = {
   seq: number;
   kind: "STAY" | "MOVE_IN" | "RENT" | "ADJUSTMENT";
   label: string;
+  period: string | null; // daterange text, e.g. "[2030-06-15,2030-07-15)"
   due_date: string;
   total_amount: number;
   paid_amount: number;
@@ -88,7 +89,7 @@ export type BookingDetail = BookingRow & {
   cancel_reason: string | null;
   actual_check_in: string | null;
   actual_check_out: string | null;
-  periods: (PeriodRow & { lines: { description: string; amount: number; charge_type: string }[] })[];
+  periods: (PeriodRow & { lines: { id: string; description: string; amount: number; charge_type: string }[] })[];
   payments: Payment[];
   refunds: { id: string; amount: number; refunded_at: string; method: string; reason: string }[];
   history: { id: number; from_status: BookingStatus | null; to_status: BookingStatus; reason: string | null; changed_at: string }[];
@@ -105,15 +106,15 @@ export const getBooking = cache(async (code: string): Promise<BookingDetail> => 
   if (!b) notFound();
   const [periods, lines, payments, refunds, history, lease] = await Promise.all([
     supabase.from("charge_periods_v").select("*").eq("booking_id", b.id).order("seq"),
-    supabase.from("charge_lines").select("period_id, description, amount, charge_type, period:charge_periods!inner(booking_id)").eq("period.booking_id", b.id),
+    supabase.from("charge_lines").select("id, period_id, description, amount, charge_type, period:charge_periods!inner(booking_id)").eq("period.booking_id", b.id),
     supabase.from("payments").select("*").eq("booking_id", b.id).order("paid_at", { ascending: false }).order("recorded_at", { ascending: false }),
     supabase.from("refunds").select("id, amount, refunded_at, method, reason").eq("booking_id", b.id),
     supabase.from("booking_status_history").select("id, from_status, to_status, reason, changed_at").eq("booking_id", b.id).order("changed_at"),
     supabase.from("leases").select("*").eq("booking_id", b.id).maybeSingle(),
   ]);
-  const byPeriod = new Map<string, { description: string; amount: number; charge_type: string }[]>();
+  const byPeriod = new Map<string, { id: string; description: string; amount: number; charge_type: string }[]>();
   for (const l of lines.data ?? []) {
-    byPeriod.set(l.period_id, [...(byPeriod.get(l.period_id) ?? []), { description: l.description, amount: l.amount, charge_type: l.charge_type }]);
+    byPeriod.set(l.period_id, [...(byPeriod.get(l.period_id) ?? []), { id: l.id, description: l.description, amount: l.amount, charge_type: l.charge_type }]);
   }
   return {
     ...(b as unknown as BookingDetail),

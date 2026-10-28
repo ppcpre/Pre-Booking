@@ -449,3 +449,199 @@ export async function billUtilities(input: { propertyId: string; propertyCode: s
   refresh(input.propertyCode);
   return { ok: true, data: data as { billed: number; skipped: number; total: number } };
 }
+
+// ------------------------------------------------------------------ corrections (edit past data)
+const s = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
+const done = (fd: FormData, message: string): ActionResult => {
+  refresh(s(fd, "property_code"), s(fd, "booking_code"));
+  return { ok: true, message };
+};
+const baht = (n: number) => `฿${(Math.abs(n) / 100).toLocaleString("en-US")}`;
+
+/** Booking details and the guest's contact details. */
+export async function updateBookingInfo(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  const p = z
+    .object({
+      adults: z.coerce.number().int().min(1, "At least 1 adult").max(50),
+      children: z.coerce.number().int().min(0).max(50),
+      full_name: z.string().trim().min(1, "Enter the guest's name").max(120),
+      phone: z.string().trim().max(40),
+      email: z.union([z.literal(""), z.string().trim().email("Check the email")]),
+      line_id: z.string().trim().max(60),
+      company_name: z.string().trim().max(160),
+      tax_id: z.string().trim().max(20),
+      branch: z.string().trim().max(60),
+      billing_address: z.string().trim().max(400),
+      note: z.string().trim().max(500),
+      source: z.string().trim().max(20),
+    })
+    .safeParse(Object.fromEntries(["adults", "children", "full_name", "phone", "email", "line_id", "company_name", "tax_id", "branch", "billing_address", "note", "source"].map((k) => [k, s(fd, k)])));
+  if (!p.success) return { error: p.error.issues[0]?.message ?? "Check the details" };
+  const supabase = await createClient();
+  const guestId = s(fd, "guest_id");
+  if (guestId) {
+    const company = fd.get("is_company") === "1";
+    const { data, error } = await supabase
+      .from("guests")
+      .update({
+        full_name: p.data.full_name,
+        phone: p.data.phone || null,
+        email: p.data.email || null,
+        line_id: p.data.line_id || null,
+        is_company: company,
+        company_name: company ? p.data.company_name || null : null,
+        tax_id: company ? p.data.tax_id || null : null,
+        branch: company ? p.data.branch || null : null,
+        billing_address: company ? p.data.billing_address || null : null,
+      })
+      .eq("id", guestId)
+      .select("id");
+    if (error || !data?.length) return { error: "Couldn't save the guest's details. Only front desk, managers and admins can edit guests." };
+  }
+  const { error } = await supabase.rpc("update_booking_info", {
+    p_booking: s(fd, "booking_id"),
+    p: { adults: p.data.adults, children: p.data.children, note: p.data.note, source: p.data.source },
+  });
+  if (error) return { error: rpcMessage(error) };
+  return done(fd, "Details saved");
+}
+
+export async function changeDailyStay(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  const p = z.object({ unit_id: uuid, start: isoDate, end: isoDate }).safeParse({ unit_id: s(fd, "unit_id"), start: s(fd, "start"), end: s(fd, "end") });
+  if (!p.success) return { error: "Pick the unit and dates" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("change_daily_stay", {
+    p_booking: s(fd, "booking_id"),
+    p_unit: p.data.unit_id,
+    p_start: p.data.start,
+    p_end: p.data.end,
+    p_reason: s(fd, "reason"),
+  });
+  if (error) return { error: rpcMessage(error) };
+  const d = (data as { difference: number }).difference;
+  return done(fd, d === 0 ? "Stay changed. The price is the same." : d > 0 ? `Stay changed. ${baht(d)} more to pay.` : `Stay changed. ${baht(d)} less; anything already paid beyond the new total is kept as credit.`);
+}
+
+export async function changeLease(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  const p: Record<string, unknown> = { reason: s(fd, "reason") };
+  if (s(fd, "unit_id") && s(fd, "unit_id") !== s(fd, "current_unit_id")) p.unit_id = s(fd, "unit_id");
+  if (s(fd, "start") && s(fd, "start") !== s(fd, "current_start")) {
+    if (!isISODate(s(fd, "start"))) return { error: "Pick the move-in date" };
+    p.start = s(fd, "start");
+  }
+  if (s(fd, "months") && s(fd, "months") !== s(fd, "current_months")) {
+    const m = Number(s(fd, "months"));
+    if (!Number.isInteger(m) || m < 1 || m > 120) return { error: "Lease length must be 1 to 120 months" };
+    p.months = m;
+  }
+  if (s(fd, "rent") && s(fd, "rent") !== s(fd, "current_rent")) {
+    try {
+      p.rent = bahtToSatang(s(fd, "rent"));
+    } catch {
+      return { error: "Enter the rent like 15000" };
+    }
+    if (s(fd, "rent_from")) p.rent_from = s(fd, "rent_from");
+  }
+  if (Object.keys(p).length === 1) return { error: "Nothing was changed" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("change_lease", { p_booking: s(fd, "booking_id"), p });
+  if (error) return { error: rpcMessage(error) };
+  const r = data as { skipped_paid_months: number };
+  return done(fd, `Lease changed.${r.skipped_paid_months ? ` ${r.skipped_paid_months} month${r.skipped_paid_months > 1 ? "s" : ""} already paid kept the old rent.` : ""}`);
+}
+
+export async function addCharge(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  let amount: number;
+  try {
+    amount = bahtToSatang(s(fd, "amount"));
+  } catch {
+    return { error: "Enter the amount like 500" };
+  }
+  if (amount <= 0) return { error: "Enter an amount more than 0" };
+  if (s(fd, "kind") === "DISCOUNT") amount = -amount;
+  const due = s(fd, "due_date");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("add_charge", {
+    p_booking: s(fd, "booking_id"),
+    p_period: s(fd, "period_id") || null,
+    p_description: s(fd, "description"),
+    p_amount: amount,
+    p_due: isISODate(due) ? due : null,
+    p_reason: s(fd, "reason") || null,
+  });
+  if (error) return { error: rpcMessage(error) };
+  return done(fd, amount < 0 ? `Discount of ${baht(amount)} added` : `Charge of ${baht(amount)} added`);
+}
+
+/** Due date / waive a period, and optionally remove one of its charges. */
+export async function correctPeriod(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  const reason = s(fd, "reason");
+  if (!reason) return { error: "Give a reason for the change" };
+  const supabase = await createClient();
+  const p: Record<string, unknown> = { reason };
+  if (s(fd, "due_date") && s(fd, "due_date") !== s(fd, "current_due")) p.due_date = s(fd, "due_date");
+  const waive = s(fd, "state");
+  if (waive && waive !== s(fd, "current_state")) p.waive = waive === "WAIVED";
+  const line = s(fd, "remove_line");
+  if (Object.keys(p).length === 1 && !line) return { error: "Nothing was changed" };
+  if (Object.keys(p).length > 1) {
+    const { error } = await supabase.rpc("update_period", { p_period: s(fd, "period_id"), p });
+    if (error) return { error: rpcMessage(error) };
+  }
+  if (line) {
+    const { error } = await supabase.rpc("remove_charge", { p_line: line, p_reason: reason });
+    if (error) return { error: rpcMessage(error) };
+  }
+  return done(fd, "Saved");
+}
+
+export async function editPayment(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  const paidAt = s(fd, "paid_at");
+  if (!isISODate(paidAt)) return { error: "Pick the date received" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("edit_payment", {
+    p_payment: s(fd, "payment_id"),
+    p: { paid_at: paidAt, method: s(fd, "method"), reference: s(fd, "reference"), note: s(fd, "note"), wht_cert_no: s(fd, "wht_cert_no"), reason: s(fd, "reason") },
+  });
+  if (error) return { error: rpcMessage(error) };
+  const rc = (data as { receipt: string | null }).receipt;
+  return done(fd, rc ? `Payment updated. The old receipt is void; new receipt ${rc}.` : "Payment updated");
+}
+
+export async function correctStatus(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  const action = s(fd, "action");
+  if (!["undo_check_in", "undo_check_out", "reopen", "set_times"].includes(action)) return { error: "Choose what to correct" };
+  // Times are entered in Bangkok time.
+  const t = (k: string) => (s(fd, k) ? `${s(fd, k)}:00+07:00` : null);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("correct_status", {
+    p_booking: s(fd, "booking_id"),
+    p_action: action,
+    p: { reason: s(fd, "reason"), check_in_at: t("check_in_at"), check_out_at: t("check_out_at") },
+  });
+  if (error) return { error: rpcMessage(error) };
+  const label: Record<string, string> = { undo_check_in: "Check-in undone", undo_check_out: "Check-out undone", reopen: "Booking reopened", set_times: "Times corrected" };
+  return done(fd, label[action]!);
+}
+
+export async function correctMeterReading(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  const del = fd.get("delete") === "1";
+  let value: number | null = null;
+  if (!del) {
+    value = Number(s(fd, "value").replace(/,/g, ""));
+    if (!s(fd, "value") || !Number.isFinite(value) || value < 0) return { error: "Enter a reading of 0 or more" };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("correct_meter_reading", { p_reading: s(fd, "reading_id"), p_value: value, p_reason: s(fd, "reason") });
+  if (error) return { error: rpcMessage(error) };
+  revalidatePath(`/p/${s(fd, "property_code")}`, "layout");
+  return { ok: true, message: del ? "Reading deleted and bills updated" : "Reading corrected and bills updated" };
+}

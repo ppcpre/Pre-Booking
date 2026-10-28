@@ -8,9 +8,10 @@ import { createClient } from "@/lib/supabase/client";
 import { formatTHB } from "@/lib/money";
 import { fmtDate } from "@/lib/dates";
 import type { MeterRow, Utility } from "@/lib/meters";
-import { billUtilities, saveReadings } from "../actions";
+import { ActionDialog } from "@/components/action-dialog";
+import { billUtilities, correctMeterReading, saveReadings } from "../actions";
 
-type Props = { propertyId: string; propertyCode: string; date: string; utility: Utility; rows: MeterRow[]; canEdit: boolean };
+type Props = { propertyId: string; propertyCode: string; date: string; utility: Utility; rows: MeterRow[]; canEdit: boolean; canCorrect: boolean };
 type RowState = { value: string; photoPath?: string; preview?: string | null; allowLower: boolean; error?: string; uploading?: boolean };
 
 /** Shrinks a photo to at most 1600 px on the long side (JPEG) so uploads stay small on mobile data. */
@@ -24,7 +25,7 @@ async function shrink(file: File): Promise<Blob> {
   return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Couldn't read the photo"))), "image/jpeg", 0.82));
 }
 
-export function MeterSheet({ propertyId, propertyCode, date, utility, rows, canEdit }: Props) {
+export function MeterSheet({ propertyId, propertyCode, date, utility, rows, canEdit, canCorrect }: Props) {
   const router = useRouter();
   const [state, setState] = useState<Record<string, RowState>>(() =>
     Object.fromEntries(rows.map((r) => [r.unitId, { value: r.current ? String(r.current.value) : "", preview: r.current?.photoUrl ?? null, allowLower: false }])),
@@ -125,7 +126,24 @@ export function MeterSheet({ propertyId, propertyCode, date, utility, rows, canE
                         }
                       }}
                     />
-                    {r.current?.billed && <div className="hint">billed</div>}
+                    {r.current?.billed && (
+                      <div className="hint" style={{ display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
+                        billed
+                        {canCorrect && (
+                          <ActionDialog label="Correct" title={`Correct reading · unit ${r.unitCode}`} subtitle={`${utility === "WATER" ? "Water" : "Electricity"} on ${fmtDate(date)}: ${r.current.value.toLocaleString("en-US")}`}
+                            action={correctMeterReading} submitLabel="Save and update bills" triggerClass="btn sm quiet">
+                            <input type="hidden" name="property_code" value={propertyCode} />
+                            <input type="hidden" name="reading_id" value={r.current.id} />
+                            <div className="form">
+                              <label className="lb">Correct reading<input className="field" name="value" inputMode="decimal" defaultValue={String(r.current.value)} /></label>
+                              <label className="check" style={{ alignSelf: "end" }}><input type="checkbox" name="delete" value="1" />Delete this reading</label>
+                              <label className="lb full">Reason<small>Saved in the tenant&apos;s booking activity</small><input className="field" name="reason" required placeholder="Typo: 4,640 not 4,460" /></label>
+                            </div>
+                            <p className="hint" style={{ margin: 0 }}>The charge for this reading, and for the next reading of the same meter, are recalculated. Anything paid beyond the new amount becomes the tenant&apos;s credit.</p>
+                          </ActionDialog>
+                        )}
+                      </div>
+                    )}
                     {lower && !locked && (
                       <label className="hint" style={{ display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center", marginTop: 4 }}>
                         <input type="checkbox" checked={st.allowLower} onChange={(e) => set(r.unitId, { allowLower: e.target.checked })} />meter replaced

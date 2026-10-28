@@ -68,3 +68,26 @@ export function parseStay(range: string): { start: string; end: string } {
 export function fmtDateTime(ts: string): string {
   return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" }).format(new Date(ts));
 }
+
+/** Timestamp → "YYYY-MM-DDTHH:mm" in Bangkok time, for <input type="datetime-local">. */
+export function toLocalInput(ts: string | null): string {
+  if (!ts) return "";
+  return new Date(ts).toLocaleString("sv-SE", { timeZone: "Asia/Bangkok", hour12: false }).replace(" ", "T").slice(0, 16);
+}
+
+export function addMonths(iso: string, n: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const first = new Date(Date.UTC(y!, m! - 1 + n, 1));
+  const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  first.setUTCDate(Math.min(d!, last));
+  return first.toISOString().slice(0, 10);
+}
+
+/** Lease length in months: the fewest months from a that reach b (29 Feb + 12 months = 28 Feb counts as 12). */
+export function monthsBetween(a: string, b: string): number {
+  const [ay, am] = a.split("-").map(Number);
+  const [by, bm] = b.split("-").map(Number);
+  let m = Math.max((by! - ay!) * 12 + (bm! - am!) - 1, 0);
+  while (addMonths(a, m) < b) m++;
+  return m;
+}

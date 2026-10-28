@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ActionDialog } from "@/components/action-dialog";
 import { BookingStatusPill, ModeTag, PeriodStatusPill } from "@/components/status";
 import { requireMember } from "@/lib/session";
-import { getProperty } from "@/lib/properties";
+import { getProperty, getUnits } from "@/lib/properties";
+import { Corrections, PaymentEdit, PeriodEdit } from "./corrections";
 import { getBooking } from "@/lib/bookings";
 import { formatTHB, satangToBaht } from "@/lib/money";
 import { daysBetween, fmtDate, fmtDateTime, fmtRange, todayISO } from "@/lib/dates";
@@ -22,7 +23,7 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
   const member = await requireMember();
   const p = await getProperty(code);
   const b = await getBooking(bk);
-  const docs = await bookingDocuments(b.id);
+  const [docs, units] = await Promise.all([bookingDocuments(b.id), getUnits(p.id)]);
   const receiptFor = new Map(docs.filter((d) => d.type === "RECEIPT" && d.status === "ISSUED").map((d) => [d.payment_id, d.number]));
   const today = todayISO();
   const base = `/p/${p.code}`;
@@ -211,7 +212,7 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
         <h2>{b.mode === "YEARLY" ? "Monthly payments" : "Charges"} <span>{b.periods.length} period{b.periods.length > 1 ? "s" : ""}</span></h2>
         <div className="panel tw">
           <table className="t">
-            <thead><tr><th>#</th><th>Period</th><th>Due</th><th className="r">Amount</th><th className="r">Paid</th><th className="r">Balance</th><th>Status</th><th>Paid on</th></tr></thead>
+            <thead><tr><th>#</th><th>Period</th><th>Due</th><th className="r">Amount</th><th className="r">Paid</th><th className="r">Balance</th><th>Status</th><th>Paid on</th>{isManager && <th><span className="sr-only">Edit</span></th>}</tr></thead>
             <tbody>
               {b.periods.map((x) => (
                 <tr key={x.id}>
@@ -231,6 +232,7 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
                   <td className="r">{x.balance && x.status !== "CANCELLED" ? formatTHB(x.balance) : <span className="dim">–</span>}</td>
                   <td><PeriodStatusPill status={x.status} daysLate={x.days_late} /></td>
                   <td>{x.paid_at ? fmtDate(x.paid_at) : <span className="dim">–</span>}</td>
+                  {isManager && <td className="r"><PeriodEdit x={x} hidden={hidden} /></td>}
                 </tr>
               ))}
             </tbody>
@@ -255,6 +257,9 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
                   ) : !pay.voided_at && pay.method !== "DEPOSIT" && pay.method !== "CREDIT" ? (
                     <InlineAction action={issueReceipt} fields={{ ...hidden, payment_id: pay.id }} label="Issue receipt" className="btn sm quiet" />
                   ) : null}
+                  {!pay.voided_at && canVoid && pay.method !== "DEPOSIT" && pay.method !== "CREDIT" && (
+                    <PaymentEdit pay={pay} hidden={hidden} today={today} isCompany={!!guest?.is_company} hasReceipt={receiptFor.has(pay.id)} />
+                  )}
                   {!pay.voided_at && canVoid && pay.method !== "DEPOSIT" && pay.method !== "CREDIT" && (
                     <ActionDialog label="Void" title="Void payment" subtitle={`${formatTHB(pay.amount)} on ${fmtDate(pay.paid_at)}`} action={voidPayment} submitLabel="Void payment" triggerClass="btn sm quiet" submitClass="btn danger">
                       <Hidden />
@@ -311,11 +316,12 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
               </div>
             )}
           </div>
+          <Corrections b={b} hidden={hidden} today={today} isManager={isManager} canBook={canBook} units={units} />
           <div className="card">
             <h2>Activity</h2>
             <div style={{ display: "grid", gap: 6, fontSize: 13 }}>
               {b.history.map((h) => (
-                <span key={h.id}><span className="dim">{fmtDateTime(h.changed_at)}</span> · {BOOKING_STATUS[h.to_status].label}{h.reason ? ` — ${h.reason}` : ""}</span>
+                <span key={h.id}><span className="dim">{fmtDateTime(h.changed_at)}</span> · {h.from_status === h.to_status ? "Edited" : BOOKING_STATUS[h.to_status].label}{h.reason ? ` — ${h.reason}` : ""}</span>
               ))}
               <span className="dim">Booked via {b.source.replace("_", " ").toLowerCase()} on {fmtDateTime(b.created_at)}</span>
             </div>

@@ -95,3 +95,16 @@ describe("validation", () => {
     expect(roomTypeSchema.parse({ name: "Studio", max_occupancy: "2", size_sqm: "", amenities: "Air con, Wi-Fi,," }).amenities).toEqual(["Air con", "Wi-Fi"]);
   });
 });
+
+import { addMonths, monthsBetween } from "@/lib/dates";
+describe("months", () => {
+  it("adds months like Postgres", () => {
+    expect(addMonths("2030-01-31", 1)).toBe("2030-02-28");
+    expect(addMonths("2032-02-29", 12)).toBe("2033-02-28");
+  });
+  it("counts lease months", () => {
+    expect(monthsBetween("2030-01-31", "2031-01-31")).toBe(12);
+    expect(monthsBetween("2032-02-29", "2033-02-28")).toBe(12);
+    expect(monthsBetween("2030-06-15", "2030-12-15")).toBe(6);
+  });
+});

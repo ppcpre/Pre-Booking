@@ -53,6 +53,7 @@ export default async function MetersPage({ params, searchParams }: { params: Pro
           utility={utility}
           rows={rows}
           canEdit={member.role !== "ACCOUNTANT"}
+          canCorrect={member.role === "ADMIN" || member.role === "MANAGER"}
         />
       )}
     </>
