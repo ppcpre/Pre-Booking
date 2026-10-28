@@ -23,14 +23,14 @@
    - Region: **Southeast Asia (Singapore)**
    - Plan: Free ใช้ทดลองได้ (ข้อจำกัด: ไม่มีการกู้คืนข้อมูลย้อนหลัง และโปรเจกต์จะถูกพักถ้าไม่มีการใช้งาน 7 วัน → ใช้งานจริงแนะนำ Pro)
 2. **เปิด pg_cron:** เมนูซ้าย **Database → Extensions** → ค้นหา `pg_cron` → เปิด (Enable)
-3. **รัน SQL ทีละไฟล์ตามลำดับ:** เมนูซ้าย **SQL Editor** → **New query** → คัดลอกเนื้อหาไฟล์จากโฟลเดอร์ `supabase/migrations/` มาวาง → กด **Run** → ต้องขึ้น "Success" ก่อนไปไฟล์ถัดไป
-   1. `20261027000100_sprint1_core.sql`
-   2. `20261027000200_sprint1_storage.sql`
-   3. `20261028000100_sprint2_bookings.sql`
-   4. `20261028000200_sprint2_cron.sql`
-   5. `20261029000100_sprint3_meters_documents.sql`
-   6. `20261029000200_sprint3_storage.sql`
-   7. `20261029000300_auth_hook_grants.sql`
+3. **สร้างตารางทั้งหมด (คัดลอกวางครั้งเดียว):**
+   1. เปิดไฟล์ https://github.com/ppcpre/Pre-Booking/blob/claude/awesome-goodall-t65b28/supabase/setup-all.sql
+   2. กดปุ่ม **Copy raw file** (ไอคอนสี่เหลี่ยมซ้อนกัน มุมขวาบนของกล่องโค้ด)
+   3. Supabase เมนูซ้าย **SQL Editor** → **New query** (หรือ "+")
+   4. คลิกในช่องว่าง → วาง (Ctrl+V / ⌘V) → กด **Run** (มุมขวาล่าง หรือ Ctrl+Enter)
+   5. ถ้า Supabase เตือนว่ามีคำสั่งที่ลบ/แก้ข้อมูล ให้กด **Run this query** ยืนยัน
+   6. ต้องขึ้น **"Success. No rows returned"** — ถ้าขึ้น error ให้ส่งข้อความมาให้ผม (ไฟล์นี้รันแบบทั้งหมดหรือไม่มีเลย ถ้า error จะไม่มีอะไรค้างครึ่งๆ กลางๆ แก้แล้วรันใหม่ได้เลย)
+   > ไฟล์นี้คือ 7 ไฟล์ใน `supabase/migrations/` ต่อกันตามลำดับ ถ้าอยากรันทีละไฟล์ก็ทำแบบเดียวกันทีละไฟล์ได้
 4. **ใส่ตัวเองเป็น Admin คนแรก:** New query → วาง SQL ด้านล่าง → **เปลี่ยนอีเมลเป็น Gmail ของคุณ** → Run
    ```sql
    insert into public.team_members (email, full_name, role)
