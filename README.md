@@ -93,9 +93,9 @@ The service worker only runs in production builds. To test it, use `npm run buil
 
 The current bundle is about 1.3 MB gzipped. That is within the Workers free-plan size limit, but for real traffic use **Workers Paid**, because the free plan's CPU time per request is tight for server-rendered pages.
 
-### 5. Database updates
+### 5. Automatic deploys
 
-`.github/workflows/db-migrate.yml` runs `scripts/db-migrate.sh` on every push that changes `supabase/migrations/`. It applies new files in order, each in one transaction, and records them in `app.schema_migrations`. Set the repository secret `SUPABASE_DB_URL` to the Supabase **Session pooler** connection string. New migrations must not edit old files; add a new file instead.
+`.github/workflows/deploy.yml` runs on every push: first `scripts/db-migrate.sh` applies new files in `supabase/migrations/` (each in one transaction, recorded in `app.schema_migrations`), then the app is type-checked, tested, built with OpenNext and deployed to Cloudflare. Repository secrets: `SUPABASE_DB_URL` (Supabase **Session pooler** connection string), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `CLOUDFLARE_API_TOKEN` ("Edit Cloudflare Workers" template), `CLOUDFLARE_ACCOUNT_ID`. Never edit a migration that has shipped; add a new file.
 
 ## Scripts
 

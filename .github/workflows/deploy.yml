@@ -1,0 +1,71 @@
+name: Deploy
+
+# On every push: 1) apply new database migrations to Supabase, 2) build and deploy the app to Cloudflare.
+# Repository secrets (Settings → Secrets and variables → Actions), see docs/SETUP.md section 6:
+#   SUPABASE_DB_URL                 Supabase → Connect → Session pooler connection string
+#   NEXT_PUBLIC_SUPABASE_URL        same values as in .env.local
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY
+#   CLOUDFLARE_API_TOKEN            Cloudflare → My Profile → API Tokens → "Edit Cloudflare Workers"
+#   CLOUDFLARE_ACCOUNT_ID
+on:
+  push:
+    branches: [main, claude/awesome-goodall-t65b28]
+    paths-ignore: ["docs/**", "**/*.md"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  database:
+    name: Update database
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply new migrations
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::SUPABASE_DB_URL is not set, so the database was not updated. Run supabase/update-latest.sql by hand, or add the secret."
+            exit 0
+          fi
+          command -v psql >/dev/null || (sudo apt-get update -q && sudo apt-get install -yq postgresql-client)
+          ./scripts/db-migrate.sh
+
+  app:
+    name: Deploy app
+    needs: database
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Check the secrets are set
+        run: |
+          missing=""
+          for k in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            [ -n "${!k}" ] || missing="$missing $k"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Add these repository secrets to deploy automatically:$missing (see docs/SETUP.md section 6)."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Build and deploy to Cloudflare
+        run: npx opennextjs-cloudflare build && npx opennextjs-cloudflare deploy

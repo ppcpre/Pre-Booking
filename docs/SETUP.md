@@ -124,36 +124,46 @@
 5. เข้าที่พัก → **New booking** รายวัน 1 รายการ → **Take payment** → ต้องได้ใบเสร็จ
 6. บนมือถือ: เปิด URL ใน Chrome (Android) หรือ Safari (iPhone) → เมนูโปรไฟล์ → **Install app**
 
-## 6. อัปเดตระบบครั้งต่อไป
+## 6. อัปเดตอัตโนมัติด้วย GitHub (ตั้งครั้งเดียว)
 
-### 6.1 ให้ GitHub อัปเดตฐานข้อมูลเอง (ตั้งครั้งเดียว)
+หลังตั้งค่าแล้ว ทุกครั้งที่มีโค้ดใหม่ GitHub จะ (1) อัปเดตฐานข้อมูล Supabase แล้ว (2) build และขึ้นเว็บที่ Cloudflare ให้เอง ไม่ต้องรันอะไรที่คอม ดูความคืบหน้าได้ที่ https://github.com/ppcpre/Pre-Booking/actions → **Deploy**
 
-ทุกครั้งที่มีไฟล์ SQL ใหม่ใน `supabase/migrations/` GitHub จะรันให้บน Supabase เอง (ดูได้ที่แท็บ **Actions → Update database**)
+ใส่ค่าลับ 5 ค่าที่ https://github.com/ppcpre/Pre-Booking/settings/secrets/actions → **New repository secret** (ทีละค่า: Name ตามตาราง แล้ววางค่าใน Secret → **Add secret**) ห้ามส่งค่าเหล่านี้ในแชตหรือใส่ในไฟล์
 
-1. **เอา connection string จาก Supabase**
-   1. เปิดโปรเจกต์ใน Supabase → กดปุ่ม **Connect** ด้านบน
-   2. แท็บ **Connection String** → Type: **URI** → Method: **Session pooler** (ต้องเป็น Session pooler เพราะ GitHub ต่อแบบ Direct ไม่ได้)
-   3. Copy จะได้หน้าตาแบบ `postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres`
-   4. แทน `[YOUR-PASSWORD]` (รวมวงเล็บ) ด้วยรหัสผ่านฐานข้อมูล
-      - ถ้าจำไม่ได้: **Project Settings → Database → Reset database password** → ตั้งเป็นตัวอักษรกับตัวเลขล้วน (ไม่มี @ # / ?)
-      - การเปลี่ยนรหัสนี้ไม่กระทบแอป เพราะแอปใช้ anon key
-2. **ใส่ใน GitHub** (ห้ามส่งค่านี้ในแชตหรือใส่ในไฟล์)
-   1. https://github.com/ppcpre/Pre-Booking/settings/secrets/actions → **New repository secret**
-   2. Name: `SUPABASE_DB_URL` · Secret: วาง connection string จากข้อ 1 → **Add secret**
-3. **รันครั้งแรก**
-   1. https://github.com/ppcpre/Pre-Booking/actions → เลือก **Update database** ทางซ้าย → **Run workflow** → **Run workflow**
-   2. รอ 1 นาที ต้องขึ้นเครื่องหมายถูกสีเขียว
-   3. ครั้งแรกระบบจะจดว่าฐานข้อมูลมีไฟล์ไหนแล้ว แล้วรันเฉพาะไฟล์ใหม่ (จองย้อนหลัง + แก้ข้อมูลย้อนหลัง)
+| Name | เอามาจากไหน |
+|---|---|
+| `SUPABASE_DB_URL` | ดูข้อ 6.1 |
+| `NEXT_PUBLIC_SUPABASE_URL` | ค่าเดียวกับในไฟล์ `.env.local` บนคอม (Supabase → Project Settings → API → Project URL) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ค่าเดียวกับในไฟล์ `.env.local` (anon / publishable key) |
+| `CLOUDFLARE_API_TOKEN` | ดูข้อ 6.2 |
+| `CLOUDFLARE_ACCOUNT_ID` | ดูข้อ 6.2 |
 
-ถ้าขึ้นกากบาทสีแดง: กดเข้าไปดูข้อความ error แล้วส่งภาพมาได้ ไฟล์ที่ error จะไม่เปลี่ยนอะไรในฐานข้อมูล
+### 6.1 SUPABASE_DB_URL
 
-### 6.2 อัปเดตหน้าเว็บ
+1. Supabase → กดปุ่ม **Connect** ด้านบน → แท็บ **Connection String** → Type: **URI** → Method: **Session pooler** (ต้องเป็น Session pooler เพราะ GitHub ต่อแบบ Direct ไม่ได้)
+2. Copy จะได้หน้าตาแบบ `postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres`
+3. แทน `[YOUR-PASSWORD]` (รวมวงเล็บ) ด้วยรหัสผ่านฐานข้อมูล
+   - ถ้าจำไม่ได้: **Project Settings → Database → Reset database password** → ตั้งเป็นตัวอักษรกับตัวเลขล้วน (ไม่มี @ # / ?)
+   - การเปลี่ยนรหัสนี้ไม่กระทบแอป เพราะแอปใช้ anon key
 
-บนคอม: `git pull` → `npm install` → `npm run deploy`
+### 6.2 Cloudflare token และ Account ID
 
-### 6.3 ถ้าไม่ใช้ GitHub อัปเดตให้
+1. https://dash.cloudflare.com/profile/api-tokens → **Create Token** → แม่แบบ **Edit Cloudflare Workers** → **Use template**
+2. Account Resources: เลือกบัญชีของคุณ · Zone Resources: **All zones** → **Continue to summary** → **Create Token** → Copy (แสดงครั้งเดียว) → ใส่เป็น `CLOUDFLARE_API_TOKEN`
+3. Account ID: เปิด https://dash.cloudflare.com → **Workers & Pages** → ดูแถบขวา **Account ID** → Copy → ใส่เป็น `CLOUDFLARE_ACCOUNT_ID`
 
-Supabase → **SQL Editor → New query** → วางเนื้อหาทั้งหมดของ **`supabase/update-latest.sql`** → **Run** (รันซ้ำได้ ไม่เสียข้อมูล · ห้ามรัน `setup-all.sql` ซ้ำบนฐานข้อมูลที่ใช้งานอยู่)
+### 6.3 รันครั้งแรก
+
+1. https://github.com/ppcpre/Pre-Booking/actions → เลือก **Deploy** ทางซ้าย → **Run workflow** → **Run workflow**
+2. รอ 3–5 นาที ต้องขึ้นเครื่องหมายถูกสีเขียวทั้ง **Update database** และ **Deploy app**
+3. ครั้งแรกระบบจะจดว่าฐานข้อมูลมีไฟล์ไหนแล้ว แล้วรันเฉพาะไฟล์ใหม่
+
+ถ้าขึ้นกากบาทสีแดง: กดเข้าไปดูข้อความ แล้วส่งภาพมาได้ ไฟล์ SQL ที่ error จะไม่เปลี่ยนอะไรในฐานข้อมูล และเว็บจะยังเป็นรุ่นเดิมจนกว่าจะผ่าน
+
+### 6.4 ถ้ายังไม่ได้ตั้ง GitHub
+
+- ฐานข้อมูล: Supabase → **SQL Editor → New query** → วางทั้งไฟล์ **`supabase/update-latest.sql`** → **Run** (รันซ้ำได้ ไม่เสียข้อมูล · ห้ามรัน `setup-all.sql` ซ้ำบนฐานข้อมูลที่ใช้งานอยู่)
+- หน้าเว็บ: บนคอม `git pull` → `npm install` → `npm run deploy`
 
 ## ปัญหาที่พบบ่อย
 
@@ -164,6 +174,6 @@ Supabase → **SQL Editor → New query** → วางเนื้อหาท�
 | Login แล้วเด้งกลับหน้า Sign in ไม่มีข้อความ | ยังไม่ได้เพิ่ม `.../auth/callback` ของ URL นั้นใน Supabase Redirect URLs (ขั้น 3.4 / 4.6) |
 | Google แจ้งว่าแอปยังไม่ผ่านการตรวจสอบ / ห้ามเข้า | ยังไม่ได้กด Publish app (ขั้น 2.3) |
 | Deploy แล้วหน้าเว็บ error เรื่อง Supabase URL | ไม่ได้ใส่ค่าใน `.env.local` ก่อน `npm run deploy` (ค่า `NEXT_PUBLIC_*` ถูกฝังตอน build) |
-| ลงจองย้อนหลังแล้วขึ้น "Check-in can't be in the past" | ฐานข้อมูลยังเป็นรุ่นเก่า → รัน **Update database** ใน GitHub Actions (6.1) หรือ `supabase/update-latest.sql` (6.3) |
+| ลงจองย้อนหลังแล้วขึ้น "Check-in can't be in the past" | ฐานข้อมูลยังเป็นรุ่นเก่า → รัน **Deploy** ใน GitHub Actions (6.3) หรือ `supabase/update-latest.sql` (6.4) |
 | รัน SQL ไฟล์ใดไฟล์หนึ่งแล้ว error | รันไฟล์ก่อนหน้าไม่ครบ หรือยังไม่เปิด pg_cron (ไฟล์ที่ 4) → ส่งข้อความ error มาให้ผมดูได้ |
 | การจองที่ไม่จ่ายเงินไม่ถูกปล่อยห้อง | pg_cron ยังไม่ทำงาน → ตรวจใน **Integrations / Database → Cron** ว่ามี job `expire-holds` |
