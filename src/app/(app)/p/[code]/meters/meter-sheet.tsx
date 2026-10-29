@@ -11,7 +11,7 @@ import type { MeterRow, Utility } from "@/lib/meters";
 import { ActionDialog } from "@/components/action-dialog";
 import { billUtilities, correctMeterReading, saveReadings } from "../actions";
 
-type Props = { propertyId: string; propertyCode: string; date: string; utility: Utility; rows: MeterRow[]; canEdit: boolean; canCorrect: boolean };
+type Props = { propertyId: string; propertyCode: string; date: string; utility: Utility; rows: MeterRow[]; canEdit: boolean; canCorrect: boolean; hasPrice: boolean };
 type RowState = { value: string; photoPath?: string; preview?: string | null; allowLower: boolean; error?: string; uploading?: boolean };
 
 /** Shrinks a photo to at most 1600 px on the long side (JPEG) so uploads stay small on mobile data. */
@@ -25,7 +25,7 @@ async function shrink(file: File): Promise<Blob> {
   return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Couldn't read the photo"))), "image/jpeg", 0.82));
 }
 
-export function MeterSheet({ propertyId, propertyCode, date, utility, rows, canEdit, canCorrect }: Props) {
+export function MeterSheet({ propertyId, propertyCode, date, utility, rows, canEdit, canCorrect, hasPrice }: Props) {
   const router = useRouter();
   const [state, setState] = useState<Record<string, RowState>>(() =>
     Object.fromEntries(rows.map((r) => [r.unitId, { value: r.current ? String(r.current.value) : "", preview: r.current?.photoUrl ?? null, allowLower: false }])),
@@ -179,8 +179,8 @@ export function MeterSheet({ propertyId, propertyCode, date, utility, rows, canE
         <div className="formfoot">
           <span className="hint">Enter moves to the next unit. Billing adds each tenant&apos;s use to their next monthly bill and can be run again safely.</span>
           <div className="actions">
-            <button className="btn" type="button" disabled={pending} onClick={() => save(false)}>Save readings</button>
-            <button className="btn primary" type="button" disabled={pending} onClick={() => save(true)}>{pending ? "Working…" : "Save and add to bills"}</button>
+            <button className={hasPrice ? "btn" : "btn primary"} type="button" disabled={pending} onClick={() => save(false)}>Save readings</button>
+            {hasPrice && <button className="btn primary" type="button" disabled={pending} onClick={() => save(true)}>{pending ? "Working…" : "Save and add to bills"}</button>}
           </div>
         </div>
       )}

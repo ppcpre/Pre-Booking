@@ -1,7 +1,7 @@
 import { ActionForm } from "@/components/action-form";
 import { createClient } from "@/lib/supabase/server";
 import { getProperty, getSetupStatus } from "@/lib/properties";
-import { activationBlockers } from "@/lib/setup";
+import { activationBlockers, setupReminders } from "@/lib/setup";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 import { activateProperty, saveStaff } from "../actions";
 
@@ -45,7 +45,7 @@ export async function StaffStep({ propertyCode }: { propertyCode: string }) {
           {blockers.length > 0 ? (
             <ul style={{ margin: 0, paddingLeft: 18, color: "var(--ink-2)" }}>{blockers.map((b) => <li key={b}>{b}</li>)}</ul>
           ) : (
-            <p className="hint">Everything needed is set: room types, units, rates{status.needs_utilities ? " and meter prices" : ""}.</p>
+            <p className="hint">Everything needed is set: room types, units and rates.{setupReminders(status).map((r) => ` ${r}`).join("")}</p>
           )}
         </ActionForm>
       )}

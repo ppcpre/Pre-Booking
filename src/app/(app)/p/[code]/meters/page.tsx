@@ -40,7 +40,14 @@ export default async function MetersPage({ params, searchParams }: { params: Pro
           </form>
           {readingDay <= today && date !== readingDay && <Link className="btn quiet" href={q(readingDay, utility)}>Reading day ({fmtDate(readingDay, false)})</Link>}
         </div>
-        <span className="hint">{rate ? `${formatTHB(rate.price_per_unit)} per unit${rate.minimum_charge ? ` · minimum ${formatTHB(rate.minimum_charge)}` : ""}` : "No price set yet — set it in property settings"}</span>
+        {rate ? (
+          <span className="hint">{formatTHB(rate.price_per_unit)} per unit{rate.minimum_charge ? ` · minimum ${formatTHB(rate.minimum_charge)}` : ""}</span>
+        ) : (
+          <span className="hint">
+            No {utility === "WATER" ? "water" : "electricity"} price yet. Readings can be saved now and billed later.{" "}
+            {(member.role === "ADMIN" || member.role === "MANAGER") && <Link href={`/settings/properties/${p.code}/meters`}>Set price</Link>}
+          </span>
+        )}
       </div>
       {rows.length === 0 ? (
         <div className="empty"><b>No meters to read</b><span>Units rented yearly appear here. Daily stays include utilities.</span></div>
@@ -54,6 +61,7 @@ export default async function MetersPage({ params, searchParams }: { params: Pro
           rows={rows}
           canEdit={member.role !== "ACCOUNTANT"}
           canCorrect={member.role === "ADMIN" || member.role === "MANAGER"}
+          hasPrice={!!rate}
         />
       )}
     </>

@@ -247,6 +247,7 @@ export async function saveUtilities(_: ActionResult, fd: FormData): Promise<Acti
   const rates = [];
   for (const utility of ["WATER", "ELECTRIC"] as const) {
     const key = utility.toLowerCase();
+    if (String(fd.get(`${key}_price`) ?? "").trim() === "") continue; // optional: set later
     try {
       rates.push({
         property_id: id,
@@ -259,8 +260,10 @@ export async function saveUtilities(_: ActionResult, fd: FormData): Promise<Acti
       return { error: `${utility === "WATER" ? "Water" : "Electricity"}: enter a price per unit like 18 or 8.50` };
     }
   }
-  const { error } = await supabase.from("utility_rates").upsert(rates, { onConflict: "property_id,utility,effective_from" });
-  if (error) return { error: "Couldn't save the prices. Try again." };
+  if (rates.length) {
+    const { error } = await supabase.from("utility_rates").upsert(rates, { onConflict: "property_id,utility,effective_from" });
+    if (error) return { error: "Couldn't save the prices. Try again." };
+  }
 
   // Starting meter readings, one pair per unit: field names "start_WATER_<unitId>" / "start_ELECTRIC_<unitId>".
   const { data: units } = await supabase.from("units").select("id").eq("property_id", id);
@@ -313,6 +316,11 @@ export async function activateProperty(_: ActionResult, fd: FormData): Promise<A
   const code = await codeOf(id);
   refresh(code);
   redirect(`/p/${code}`);
+}
+
+/** One-button version for the setup header. */
+export async function openProperty(fd: FormData) {
+  await activateProperty({}, fd);
 }
 
 export async function setPropertyStatus(fd: FormData) {

@@ -12,7 +12,7 @@ export function StepNav({ code, status }: { code: string; status: SetupStatus })
         const done = !current && stepDone(s.key, status) && s.key !== "staff";
         return (
           <Link key={s.key} href={`/settings/properties/${code}/${s.key}`} className={done ? "done" : undefined} aria-current={current ? "step" : undefined}>
-            {s.label}
+            {s.label}{s.optional && <small className="dim">optional</small>}
           </Link>
         );
       })}

@@ -3,7 +3,7 @@ import { BookingStatusPill, ModeTag, PeriodStatusPill } from "@/components/statu
 import { requireMember, canManageProperties } from "@/lib/session";
 import { getProperty, getSetupStatus } from "@/lib/properties";
 import { bookingLabels, todayView } from "@/lib/bookings";
-import { activationBlockers } from "@/lib/setup";
+import { activationBlockers, setupReminders } from "@/lib/setup";
 import { formatTHB } from "@/lib/money";
 import { fmtDate, fmtDateTime, fmtRange, todayISO } from "@/lib/dates";
 
@@ -33,6 +33,13 @@ export default async function PropertyToday({ params }: { params: Promise<{ code
           {canManageProperties(member.role) && <Link className="btn sm" href={`/settings/properties/${p.code}/${blockers.length ? "details" : "staff"}`}>Continue setup</Link>}
         </div>
       )}
+
+      {p.status === "ACTIVE" && canManageProperties(member.role) && setupReminders(status).map((r) => (
+        <div key={r} className="notice">
+          <span>{r}</span>
+          <Link className="btn sm" href={`/settings/properties/${p.code}/meters`}>Set prices</Link>
+        </div>
+      ))}
 
       <div className="kcards" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
         <Link className="kcard mint" href={`${base}/bookings?tab=upcoming`}><span className="n">{view.arrivals.length}</span><span className="l">Arriving today</span><span className="h">{arrivalsUnpaid ? `${arrivalsUnpaid} still to pay` : "all paid"}</span></Link>

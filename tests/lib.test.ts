@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { bahtToSatang, formatTHB, satangToBaht } from "@/lib/money";
 import { expandUnitRange } from "@/lib/units";
-import { activationBlockers, setupProgress, stepDone, type SetupStatus } from "@/lib/setup";
+import { activationBlockers, setupProgress, setupReminders, stepDone, type SetupStatus } from "@/lib/setup";
 import { safeNext } from "@/lib/safe-next";
 import { greeting } from "@/lib/greeting";
 import { propertySchema, roomTypeSchema } from "@/lib/validation";
@@ -48,12 +48,16 @@ describe("setup checklist", () => {
   const base: SetupStatus = { room_types: 1, units: 10, missing_rates: 0, needs_utilities: true, utility_rates: 2, staff: 0 };
   it("is ready when everything is set", () => {
     expect(activationBlockers(base)).toEqual([]);
-    expect(setupProgress(base)).toEqual({ done: 5, total: 5 });
+    expect(setupProgress(base)).toEqual({ done: 4, total: 4 });
   });
   it("lists what's missing", () => {
     expect(activationBlockers({ ...base, room_types: 0, units: 0 })).toEqual(["Add at least one room type", "Add units"]);
     expect(activationBlockers({ ...base, missing_rates: 2 })).toEqual(["Set 2 missing rates"]);
-    expect(activationBlockers({ ...base, utility_rates: 1 })).toEqual(["Set water and electricity prices for yearly units"]);
+  });
+  it("water and electricity can be set later", () => {
+    expect(activationBlockers({ ...base, utility_rates: 0 })).toEqual([]);
+    expect(setupReminders({ ...base, utility_rates: 0 })).toHaveLength(1);
+    expect(setupReminders(base)).toEqual([]);
   });
   it("doesn't need meters when nothing is rented yearly", () => {
     expect(stepDone("meters", { ...base, needs_utilities: false, utility_rates: 0 })).toBe(true);

@@ -8,12 +8,12 @@ export type SetupStatus = {
 };
 
 export const SETUP_STEPS = [
-  { key: "details", label: "Details" },
-  { key: "rooms", label: "Room types" },
-  { key: "units", label: "Units" },
-  { key: "rates", label: "Rates" },
-  { key: "meters", label: "Meters" },
-  { key: "staff", label: "Staff" },
+  { key: "details", label: "Details", optional: false },
+  { key: "rooms", label: "Room types", optional: false },
+  { key: "units", label: "Units", optional: false },
+  { key: "rates", label: "Rates", optional: false },
+  { key: "meters", label: "Water & electricity", optional: true },
+  { key: "staff", label: "Staff", optional: true },
 ] as const;
 
 export type SetupStepKey = (typeof SETUP_STEPS)[number]["key"];
@@ -35,17 +35,23 @@ export function stepDone(key: SetupStepKey, s: SetupStatus): boolean {
   }
 }
 
+/** Not needed to open, but worth doing later. */
+export function setupReminders(s: SetupStatus): string[] {
+  const out: string[] = [];
+  if (s.needs_utilities && s.utility_rates < 2) out.push("Water and electricity prices aren't set yet. Add them before billing yearly tenants for utilities.");
+  return out;
+}
+
 /** What still blocks opening the property for bookings. Empty list = ready. */
 export function activationBlockers(s: SetupStatus): string[] {
   const out: string[] = [];
   if (s.room_types === 0) out.push("Add at least one room type");
   if (s.units === 0) out.push("Add units");
   if (s.units > 0 && s.missing_rates > 0) out.push(`Set ${s.missing_rates} missing rate${s.missing_rates > 1 ? "s" : ""}`);
-  if (s.needs_utilities && s.utility_rates < 2) out.push("Set water and electricity prices for yearly units");
   return out;
 }
 
 export function setupProgress(s: SetupStatus): { done: number; total: number } {
-  const done = SETUP_STEPS.filter((st) => st.key !== "staff" && stepDone(st.key, s)).length;
-  return { done, total: SETUP_STEPS.length - 1 };
+  const required = SETUP_STEPS.filter((st) => !st.optional);
+  return { done: required.filter((st) => stepDone(st.key, s)).length, total: required.length };
 }

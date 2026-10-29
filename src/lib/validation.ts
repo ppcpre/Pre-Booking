@@ -7,6 +7,9 @@ const optionalText = z
   .transform((v) => (v === "" ? null : v));
 
 const time = z.string().regex(/^\d{2}:\d{2}$/, "Use HH:MM, e.g. 14:00");
+/** Blank or missing → the default, so optional fields can be left empty. */
+const orDefault = <T extends z.ZodTypeAny>(schema: T, fallback: z.input<T>) =>
+  z.preprocess((v) => (v === undefined || v === null || (typeof v === "string" && v.trim() === "") ? fallback : v), schema);
 
 export const emailSchema = z.string().trim().toLowerCase().email("Enter a valid email address");
 
@@ -17,8 +20,8 @@ export const businessSchema = z.object({
   address: optionalText,
   tax_id: optionalText,
   phone: optionalText,
-  hold_hours: z.coerce.number().int().min(1).max(720),
-  front_desk_discount_limit_pct: z.coerce.number().min(0).max(100),
+  hold_hours: orDefault(z.coerce.number().int().min(1).max(720), 24),
+  front_desk_discount_limit_pct: orDefault(z.coerce.number().min(0).max(100), 10),
 });
 
 export const propertySchema = z.object({
@@ -28,14 +31,14 @@ export const propertySchema = z.object({
     .trim()
     .toUpperCase()
     .regex(/^[A-Z0-9]{2,6}$/, "Code is 2–6 letters or numbers, e.g. SKV"),
-  type: z.enum(["APARTMENT", "HOTEL", "HOUSE", "CONDO", "OTHER"]),
-  address: optionalText,
-  phone: optionalText,
-  check_in_time: time,
-  check_out_time: time,
-  meter_reading_day: z.coerce.number().int().min(1).max(28),
-  grace_days: z.coerce.number().int().min(0).max(60),
-  payment_instructions: optionalText,
+  type: orDefault(z.enum(["APARTMENT", "HOTEL", "HOUSE", "CONDO", "OTHER"]), "APARTMENT"),
+  address: orDefault(optionalText, ""),
+  phone: orDefault(optionalText, ""),
+  check_in_time: orDefault(time, "14:00"),
+  check_out_time: orDefault(time, "12:00"),
+  meter_reading_day: orDefault(z.coerce.number().int().min(1, "Meter reading day is 1–28").max(28, "Meter reading day is 1–28"), 25),
+  grace_days: orDefault(z.coerce.number().int().min(0).max(60, "Grace days are 0–60"), 5),
+  payment_instructions: orDefault(optionalText, ""),
 });
 
 export const roomTypeSchema = z.object({
