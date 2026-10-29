@@ -4,7 +4,7 @@
 -- becomes credit on the booking. Changes to money or past status need a manager or admin.
 
 -- ---------------------------------------------------------------- helpers
-create function app.require_editor(pid uuid) returns void
+create or replace function app.require_editor(pid uuid) returns void
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 begin
   if not (app.has_role('ADMIN', 'MANAGER') and app.can_access_property(pid)) then
@@ -12,14 +12,14 @@ begin
   end if;
 end $$;
 
-create function app.require_reason(r text) returns text language plpgsql as $$
+create or replace function app.require_reason(r text) returns text language plpgsql as $$
 begin
   if coalesce(trim(r), '') = '' then perform app.fail('Give a reason for the change'); end if;
   return trim(r);
 end $$;
 
 -- Date a period became fully paid = latest date among the live payments that paid it.
-create function app.recalc_paid_at(p_period uuid) returns void
+create or replace function app.recalc_paid_at(p_period uuid) returns void
 language sql security definer set search_path = public, pg_temp as $$
   update public.charge_periods cp set paid_at = case when cp.paid_amount >= cp.total_amount and cp.total_amount > 0 then (
       select max(pm.paid_at) from public.payment_allocations pa join public.payments pm on pm.id = pa.payment_id
@@ -29,7 +29,7 @@ $$;
 
 -- Recomputes a period's total from its lines; money paid beyond the new total moves to booking credit
 -- (newest allocations are reduced first).
-create function app.recalc_period(p_period uuid) returns void
+create or replace function app.recalc_period(p_period uuid) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare cp public.charge_periods; excess bigint; a record; take bigint;
 begin
@@ -54,7 +54,7 @@ begin
 end $$;
 
 -- Moves every allocation of one period onto another (used when periods are merged).
-create function app.move_allocations(p_from uuid, p_to uuid) returns void
+create or replace function app.move_allocations(p_from uuid, p_to uuid) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare a record; moved bigint := 0;
 begin
@@ -69,7 +69,7 @@ begin
 end $$;
 
 -- Overlap with any other stay that occupies the unit (live or finished).
-create function app.assert_free(p_unit uuid, p_start date, p_end date, p_except uuid) returns void
+create or replace function app.assert_free(p_unit uuid, p_start date, p_end date, p_except uuid) returns void
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare code text;
 begin
@@ -80,7 +80,7 @@ begin
   end if;
 end $$;
 
-create function app.log_edit(bid uuid, what text, before jsonb, after jsonb) returns void
+create or replace function app.log_edit(bid uuid, what text, before jsonb, after jsonb) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare s public.booking_status;
 begin
@@ -113,7 +113,7 @@ end $$;
 
 -- ---------------------------------------------------------------- booking details
 -- p: { adults, children, note, source }   (guest details are edited on the guest row directly)
-create function public.update_booking_info(p_booking uuid, p jsonb) returns void
+create or replace function public.update_booking_info(p_booking uuid, p jsonb) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare b public.bookings; maxocc int;
 begin
@@ -137,7 +137,7 @@ grant execute on function public.update_booking_info(uuid, jsonb) to authenticat
 -- ---------------------------------------------------------------- daily: change dates / unit
 -- Re-prices the nights at the new unit's daily rate. Extra-night periods are merged into the stay.
 -- Fees and discounts already on the stay are kept. Paying beyond the new total becomes credit.
-create function public.change_daily_stay(p_booking uuid, p_unit uuid, p_start date, p_end date, p_reason text) returns jsonb
+create or replace function public.change_daily_stay(p_booking uuid, p_unit uuid, p_start date, p_end date, p_reason text) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare b public.bookings; u public.units; rt public.room_types; rp public.rate_plans; prop public.properties;
   main uuid; x record; d date; price bigint; why text; old_total bigint; new_total bigint;
@@ -199,7 +199,7 @@ grant execute on function public.change_daily_stay(uuid, uuid, date, date, text)
 --   start  : only while no rent has been paid (rent periods are rebuilt from the new date)
 --   months : lease length; unpaid months beyond the new end are removed, new months are added
 --   rent   : new monthly rent for unpaid months starting on or after rent_from
-create function public.change_lease(p_booking uuid, p jsonb) returns jsonb
+create or replace function public.change_lease(p_booking uuid, p jsonb) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare b public.bookings; le public.leases; why text; new_unit uuid; new_start date; months int; old_months int; new_end date;
   rent bigint; rent_from date; k int; ps date; pe date; nseq int; pid uuid; skipped int := 0; x record; u public.units;
@@ -288,7 +288,7 @@ grant execute on function public.change_lease(uuid, jsonb) to authenticated;
 
 -- ---------------------------------------------------------------- charges
 -- Adds a charge (positive) or a discount (negative) to a period, or to a new period when p_period is null.
-create function public.add_charge(p_booking uuid, p_period uuid, p_description text, p_amount bigint, p_due date, p_reason text) returns void
+create or replace function public.add_charge(p_booking uuid, p_period uuid, p_description text, p_amount bigint, p_due date, p_reason text) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare b public.bookings; pid uuid := p_period; nseq int;
 begin
@@ -315,7 +315,7 @@ begin
 end $$;
 grant execute on function public.add_charge(uuid, uuid, text, bigint, date, text) to authenticated;
 
-create function public.remove_charge(p_line uuid, p_reason text) returns void
+create or replace function public.remove_charge(p_line uuid, p_reason text) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare l public.charge_lines; cp public.charge_periods; b public.bookings; why text;
 begin
@@ -340,7 +340,7 @@ grant execute on function public.remove_charge(uuid, text) to authenticated;
 
 -- Changes a period's due date, or waives / reopens it.
 -- p: { due_date, waive (true/false), reason }
-create function public.update_period(p_period uuid, p jsonb) returns void
+create or replace function public.update_period(p_period uuid, p jsonb) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare cp public.charge_periods; b public.bookings; why text;
 begin
@@ -366,7 +366,7 @@ grant execute on function public.update_period(uuid, jsonb) to authenticated;
 -- ---------------------------------------------------------------- payments
 -- Changes date, method, reference or note of a payment. A receipt already issued is replaced.
 -- (To change the amount, void the payment and record it again.)
-create function public.edit_payment(p_payment uuid, p jsonb) returns jsonb
+create or replace function public.edit_payment(p_payment uuid, p jsonb) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare pay public.payments; b public.bookings; why text; a record; had_receipt boolean; rc jsonb;
 begin
@@ -404,7 +404,7 @@ grant execute on function public.edit_payment(uuid, jsonb) to authenticated;
 -- ---------------------------------------------------------------- status corrections
 -- action: 'undo_check_in' | 'undo_check_out' | 'reopen' | 'set_times'
 -- p: { reason, check_in_at, check_out_at }
-create function public.correct_status(p_booking uuid, p_action text, p jsonb) returns void
+create or replace function public.correct_status(p_booking uuid, p_action text, p jsonb) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare b public.bookings; why text; le public.leases; stay_end date;
 begin
@@ -462,7 +462,7 @@ grant execute on function public.correct_status(uuid, text, jsonb) to authentica
 
 -- ---------------------------------------------------------------- meter readings
 -- Recomputes a utility charge from the readings as they are now (used after a reading is corrected).
-create function app.recalc_utility_line(p_line uuid) returns void
+create or replace function app.recalc_utility_line(p_line uuid) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare l public.charge_lines; r public.meter_readings; b public.bookings; prev record; rate public.utility_rates; used numeric; amt bigint; label text;
 begin
@@ -486,7 +486,7 @@ end $$;
 
 -- Corrects or deletes a reading, including one already billed: its charge and the next reading's charge are recomputed.
 -- p_value null = delete.
-create function public.correct_meter_reading(p_reading uuid, p_value numeric, p_reason text) returns void
+create or replace function public.correct_meter_reading(p_reading uuid, p_value numeric, p_reason text) returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare r public.meter_readings; why text; x record; b uuid;
 begin

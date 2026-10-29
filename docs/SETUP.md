@@ -128,7 +128,7 @@
 
 เมื่อมีไฟล์ SQL ใหม่ใน `supabase/migrations/` (ไฟล์ที่ชื่อขึ้นต้นด้วยวันที่ใหม่กว่าที่เคยรัน):
 
-1. Supabase → **SQL Editor → New query** → วางเนื้อหา **เฉพาะไฟล์ใหม่** → **Run** (ห้ามรัน `setup-all.sql` ซ้ำบนฐานข้อมูลที่ใช้งานอยู่)
+1. Supabase → **SQL Editor → New query** → วางเนื้อหาทั้งหมดของ **`supabase/update-latest.sql`** → **Run** (รันซ้ำได้ ไม่เสียข้อมูล · ห้ามรัน `setup-all.sql` ซ้ำบนฐานข้อมูลที่ใช้งานอยู่)
 2. บนคอม: `git pull` → `npm install` → `npm run deploy`
 
 | ไฟล์ | เพิ่มอะไร |
@@ -145,5 +145,6 @@
 | Login แล้วเด้งกลับหน้า Sign in ไม่มีข้อความ | ยังไม่ได้เพิ่ม `.../auth/callback` ของ URL นั้นใน Supabase Redirect URLs (ขั้น 3.4 / 4.6) |
 | Google แจ้งว่าแอปยังไม่ผ่านการตรวจสอบ / ห้ามเข้า | ยังไม่ได้กด Publish app (ขั้น 2.3) |
 | Deploy แล้วหน้าเว็บ error เรื่อง Supabase URL | ไม่ได้ใส่ค่าใน `.env.local` ก่อน `npm run deploy` (ค่า `NEXT_PUBLIC_*` ถูกฝังตอน build) |
+| ลงจองย้อนหลังแล้วขึ้น "Check-in can't be in the past" | ฐานข้อมูลยังเป็นรุ่นเก่า → รัน `supabase/update-latest.sql` (หัวข้อ 6) |
 | รัน SQL ไฟล์ใดไฟล์หนึ่งแล้ว error | รันไฟล์ก่อนหน้าไม่ครบ หรือยังไม่เปิด pg_cron (ไฟล์ที่ 4) → ส่งข้อความ error มาให้ผมดูได้ |
 | การจองที่ไม่จ่ายเงินไม่ถูกปล่อยห้อง | pg_cron ยังไม่ทำงาน → ตรวจใน **Integrations / Database → Cron** ว่ามี job `expire-holds` |
