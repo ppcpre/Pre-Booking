@@ -52,7 +52,15 @@ Every correction asks for a reason and is written to the booking's activity and 
 | Status | Managers | Undo check-in, undo check-out, reopen a cancelled / expired / no-show booking, fix arrival and departure times |
 | Meter readings | Managers (billed readings) | Correct or delete; this reading's charge and the next one's are recalculated |
 
-Lease renewal, notices to move out, reports, LINE notifications and push notifications are still to come.
+## Lease renewal and notice to move out
+
+| What | Who | Notes |
+|---|---|---|
+| Leases ending soon | Everyone | Property page lists leases ending in 60 days with no decision, and tenants moving out |
+| Renew | Managers | Same booking and deposit; adds months after the current end; new rent from the old end date; optional deposit top-up (counted in the deposit at move-out). Refused if the unit is booked after the end |
+| Notice to move out | Front desk and up | Notice date and move-out date (on or before the lease end). The unit is free from move-out; unpaid rent for later months is cancelled; short notice is flagged. Can be changed or withdrawn |
+
+Reports, LINE notifications and push notifications are still to come.
 
 ## Setup
 

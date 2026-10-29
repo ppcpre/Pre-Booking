@@ -645,3 +645,46 @@ export async function correctMeterReading(_: ActionResult, fd: FormData): Promis
   revalidatePath(`/p/${s(fd, "property_code")}`, "layout");
   return { ok: true, message: del ? "Reading deleted and bills updated" : "Reading corrected and bills updated" };
 }
+
+// ------------------------------------------------------------------ lease renewal & notice
+export async function renewLease(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  const months = Number(s(fd, "months"));
+  if (!Number.isInteger(months) || months < 1 || months > 60) return { error: "Renew for 1 to 60 months" };
+  const p: Record<string, unknown> = { months, reason: s(fd, "reason") };
+  try {
+    if (s(fd, "rent")) p.rent = bahtToSatang(s(fd, "rent"));
+    if (s(fd, "deposit_topup")) p.deposit_topup = bahtToSatang(s(fd, "deposit_topup"));
+  } catch {
+    return { error: "Enter amounts like 15000" };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("renew_lease", { p_booking: s(fd, "booking_id"), p });
+  if (error) return { error: rpcMessage(error) };
+  const end = (data as { end: string }).end;
+  return done(fd, `Lease renewed until ${new Date(`${end}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`);
+}
+
+export async function giveNotice(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  if (!isISODate(s(fd, "move_out"))) return { error: "Pick the move-out date" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("give_notice", {
+    p_booking: s(fd, "booking_id"),
+    p: { move_out: s(fd, "move_out"), notice_date: s(fd, "notice_date") || null, reason: s(fd, "reason") },
+  });
+  if (error) return { error: rpcMessage(error) };
+  const r = data as { short_by_days: number; paid_months_after: number };
+  const parts = ["Notice saved. The unit is free from the move-out date."];
+  if (r.short_by_days > 0) parts.push(`Notice is ${r.short_by_days} days short of the agreed period — decide on the deposit at move-out.`);
+  if (r.paid_months_after > 0) parts.push(`${r.paid_months_after} month${r.paid_months_after > 1 ? "s" : ""} after move-out already paid; refund or keep as credit.`);
+  return done(fd, parts.join(" "));
+}
+
+export async function withdrawNotice(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  await requireMember();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("withdraw_notice", { p_booking: s(fd, "booking_id"), p_reason: s(fd, "reason") });
+  if (error) return { error: rpcMessage(error) };
+  return done(fd, "Notice withdrawn. The lease runs to its end date again.");
+}

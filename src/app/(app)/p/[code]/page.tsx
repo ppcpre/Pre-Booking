@@ -2,10 +2,10 @@ import Link from "next/link";
 import { BookingStatusPill, ModeTag, PeriodStatusPill } from "@/components/status";
 import { requireMember, canManageProperties } from "@/lib/session";
 import { getProperty, getSetupStatus } from "@/lib/properties";
-import { bookingLabels, todayView } from "@/lib/bookings";
+import { bookingLabels, leaseAlerts, todayView } from "@/lib/bookings";
 import { activationBlockers, setupReminders } from "@/lib/setup";
 import { formatTHB } from "@/lib/money";
-import { fmtDate, fmtDateTime, fmtRange, todayISO } from "@/lib/dates";
+import { daysBetween, fmtDate, fmtDateTime, fmtRange, todayISO } from "@/lib/dates";
 
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }) {
   return { title: `Today · ${(await params).code}` };
@@ -16,7 +16,7 @@ export default async function PropertyToday({ params }: { params: Promise<{ code
   const member = await requireMember();
   const p = await getProperty(code);
   const today = todayISO();
-  const [status, view] = await Promise.all([getSetupStatus(p.id), todayView([p.id], today)]);
+  const [status, view, leases] = await Promise.all([getSetupStatus(p.id), todayView([p.id], today), leaseAlerts([p.id], today)]);
   const labels = await bookingLabels([...new Set(view.due.map((d) => d.booking_id))]);
   const blockers = activationBlockers(status);
   const base = `/p/${p.code}`;
@@ -105,6 +105,31 @@ export default async function PropertyToday({ params }: { params: Promise<{ code
             </div>
           )}
         </div>
+        <div style={{ display: "grid", gap: 20, alignContent: "start" }}>
+        {(leases.ending.length > 0 || leases.movingOut.length > 0) && (
+          <div className="card">
+            <h2>Leases <span>ending in the next 60 days</span></h2>
+            <div className="list">
+              {leases.movingOut.map((l) => (
+                <Link key={l.booking_id} className="it" href={`${base}/bookings/${l.code}`}>
+                  <span className="unit">{l.unit}</span>
+                  <span style={{ minWidth: 0 }}><b>{l.guest}</b><small>Moving out {fmtDate(l.move_out_on!)}</small></span>
+                  <small className="hint">{daysBetween(today, l.move_out_on!) <= 0 ? "today or past" : `in ${daysBetween(today, l.move_out_on!)} days`}</small>
+                </Link>
+              ))}
+              {leases.ending.map((l) => {
+                const d = daysBetween(today, l.end_date);
+                return (
+                  <Link key={l.booking_id} className="it" href={`${base}/bookings/${l.code}`}>
+                    <span className="unit">{l.unit}</span>
+                    <span style={{ minWidth: 0 }}><b>{l.guest}</b><small>Ends {fmtDate(l.end_date)} · renew or take notice</small></span>
+                    <small className={`st ${d <= 30 ? "bad" : "warn"}`}>{d <= 0 ? "ended" : `${d} days`}</small>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className="card">
           <h2>Reserved, not paid <span>released automatically at the pay-by time</span></h2>
           {view.reserved.length === 0 ? <span className="hint">No unpaid reservations.</span> : (
@@ -118,6 +143,7 @@ export default async function PropertyToday({ params }: { params: Promise<{ code
               ))}
             </div>
           )}
+        </div>
         </div>
       </div>
     </>

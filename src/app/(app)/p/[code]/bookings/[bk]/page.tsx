@@ -4,6 +4,7 @@ import { BookingStatusPill, ModeTag, PeriodStatusPill } from "@/components/statu
 import { requireMember } from "@/lib/session";
 import { getProperty, getUnits } from "@/lib/properties";
 import { Corrections, PaymentEdit, PeriodEdit } from "./corrections";
+import { LeaseCard } from "./lease-actions";
 import { getBooking } from "@/lib/bookings";
 import { formatTHB, satangToBaht } from "@/lib/money";
 import { daysBetween, fmtDate, fmtDateTime, fmtRange, todayISO } from "@/lib/dates";
@@ -291,18 +292,7 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
               {b.note && <span className="hint">Note: {b.note}</span>}
             </div>
           </div>
-          {b.lease && (
-            <div className="card">
-              <h2>Lease</h2>
-              <div style={{ display: "grid", gap: 4, fontSize: 13.5 }}>
-                <span>{fmtRange(b.lease.start_date, b.lease.end_date)}</span>
-                <span>Rent {formatTHB(b.lease.rent_amount)}/month · paid monthly</span>
-                <span>Deposit {formatTHB(b.lease.deposit_amount)} ({b.lease.deposit_months} months) · {b.lease.advance_months} month{b.lease.advance_months === 1 ? "" : "s"} in advance</span>
-                <span className="hint">Notice to move out: {b.lease.notice_days} days</span>
-                {b.lease.settled_at && <span>Deposit settled: {formatTHB(b.lease.deposit_used)} used · {formatTHB(b.lease.deposit_refunded)} returned</span>}
-              </div>
-            </div>
-          )}
+          {b.lease && <LeaseCard b={b} hidden={hidden} today={today} isManager={isManager} canBook={canBook} />}
           <div className="card">
             <h2>Documents <span>{docs.length}</span></h2>
             {docs.length === 0 ? <span className="hint">Receipts are issued with payments. Use Invoice to bill what&apos;s due.</span> : (

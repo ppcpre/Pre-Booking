@@ -93,7 +93,7 @@ export type BookingDetail = BookingRow & {
   payments: Payment[];
   refunds: { id: string; amount: number; refunded_at: string; method: string; reason: string }[];
   history: { id: number; from_status: BookingStatus | null; to_status: BookingStatus; reason: string | null; changed_at: string }[];
-  lease: { start_date: string; end_date: string; rent_amount: number; deposit_amount: number; deposit_months: number; advance_months: number; notice_days: number; settled_at: string | null; deposit_used: number; deposit_refunded: number } | null;
+  lease: { start_date: string; end_date: string; rent_amount: number; deposit_amount: number; deposit_months: number; advance_months: number; notice_days: number; settled_at: string | null; deposit_used: number; deposit_refunded: number; notice_given_on: string | null; move_out_on: string | null; renewed_count: number } | null;
 };
 
 export const getBooking = cache(async (code: string): Promise<BookingDetail> => {
@@ -191,6 +191,35 @@ export async function todayView(propertyIds: string[], today: string) {
     inHouse: inHouse.count ?? 0,
     reserved: (reserved.data ?? []) as unknown as BookingRow[],
     due: (due.data ?? []) as PeriodRow[],
+  };
+}
+
+export type LeaseAlert = { booking_id: string; code: string; unit: string; guest: string; end_date: string; move_out_on: string | null; rent_amount: number };
+
+/** Yearly leases that end within `days` with no decision yet, and tenants moving out within `days`. */
+export async function leaseAlerts(propertyIds: string[], today: string, days = 60): Promise<{ ending: LeaseAlert[]; movingOut: LeaseAlert[] }> {
+  if (propertyIds.length === 0) return { ending: [], movingOut: [] };
+  const supabase = await createClient();
+  const until = new Date(Date.parse(today) + days * 86_400_000).toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from("leases")
+    .select("booking_id, end_date, move_out_on, rent_amount, booking:bookings!inner(code, status, property_id, guest:guests(full_name), unit:units(code))")
+    .in("booking.property_id", propertyIds)
+    .in("booking.status", ["CONFIRMED", "CHECKED_IN"])
+    .or(`and(move_out_on.is.null,end_date.lte.${until}),move_out_on.lte.${until}`)
+    .order("end_date");
+  const rows = ((data ?? []) as unknown as { booking_id: string; end_date: string; move_out_on: string | null; rent_amount: number; booking: { code: string; guest: { full_name: string } | null; unit: { code: string } | null } }[]).map((r) => ({
+    booking_id: r.booking_id,
+    code: r.booking.code,
+    unit: r.booking.unit?.code ?? "",
+    guest: r.booking.guest?.full_name ?? "",
+    end_date: r.end_date,
+    move_out_on: r.move_out_on,
+    rent_amount: r.rent_amount,
+  }));
+  return {
+    ending: rows.filter((r) => !r.move_out_on),
+    movingOut: rows.filter((r) => r.move_out_on).sort((a, b) => a.move_out_on!.localeCompare(b.move_out_on!)),
   };
 }
 
