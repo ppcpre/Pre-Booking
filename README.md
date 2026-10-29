@@ -93,6 +93,10 @@ The service worker only runs in production builds. To test it, use `npm run buil
 
 The current bundle is about 1.3 MB gzipped. That is within the Workers free-plan size limit, but for real traffic use **Workers Paid**, because the free plan's CPU time per request is tight for server-rendered pages.
 
+### 5. Database updates
+
+`.github/workflows/db-migrate.yml` runs `scripts/db-migrate.sh` on every push that changes `supabase/migrations/`. It applies new files in order, each in one transaction, and records them in `app.schema_migrations`. Set the repository secret `SUPABASE_DB_URL` to the Supabase **Session pooler** connection string. New migrations must not edit old files; add a new file instead.
+
 ## Scripts
 
 | Command | What it does |
